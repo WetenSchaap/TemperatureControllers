@@ -22,11 +22,8 @@ Guide for adding new machines:
 	* Stuff should now work automatically
 
 To be fixed/implemented:
-	* At PC of slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to forced restart.
-		--> Is this general for all waterbaths? - I don't think so. HaakeF6 seems fine!
-		--> Is this general for all PC's?
-		--> Is it code or hardware related?
-		
+	* At PC of slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to needing to do a forced restart. This is probably due to a bad cable or something, not this script.
+
 	* Introduce some variable that stores the temperature at different moments in time?
 		--> Use 'real' temperature vs. just storing temperature if we set it to something different.
 '''
@@ -105,8 +102,7 @@ class Temperature_controller:
 	def ramp(self,Tinit,Tend,dT,totaltime,ask,verbose=False):
 		'''
 		Makes a block temperature ramp with device for controlling temperature.
-		Used internally by all device classes.
-		NEVER use directly!
+
 		IN:
 			* Tinit     : Start temperature of ramp in deg C.
 			* Tend      : Final temperature of ramp in deg C.
@@ -170,8 +166,7 @@ class Temperature_controller:
 		'''
 		Equivalent to _ramp(), but uses steptime instead of totaltime	
 		Makes a block temperature ramp with device for controlling temperature.
-		Used internally by all device classes.
-		NEVER use directly!
+
 		IN:
 			* Tinit     : Start temperature of ramp in deg C.
 			* Tend      : Final temperature of ramp in deg C.
@@ -190,8 +185,7 @@ class Temperature_controller:
 		'''
 		Equivalent to _ramp(), but with dT = 0.01 preset.
 		Makes a continues temperature ramp (as much as we can with our setup) with device for controlling temperature.
-		Used internally by all device classes.
-		NEVER invoke directly!
+
 		IN:
 			* Tinit     : Start temperature of ramp in deg C.
 			* Tend      : Final temperature of ramp in deg C.
@@ -207,7 +201,6 @@ class Temperature_controller:
 		"""
 		Changes temperature of temperature control unit to temp, and checks if it was succesfull.
 		Number will be rounded to 2 decimals.
-		*NEVER* invoke this function directly!
 		"""
 		temp = round(temp,2) 	# In case somebody still puts in ##.###, note that ##.# or ## is no problem
 		
@@ -261,7 +254,7 @@ class haake:
 		
 	def _readtemp_external(self):
 		'''
-		Reads out external temperature. Usefull if we add sensor to setup. Which we won't, but you know...
+		Reads out external temperature. Usefull if we add sensor to setup (which we won't do, but you know...).
 		'''
 		readtemp_E_command = "F2\r"
 		message = self._in_command(readtemp_E_command)
