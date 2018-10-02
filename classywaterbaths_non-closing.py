@@ -22,13 +22,13 @@ Guide for adding new machines:
 	* Stuff should now work automatically
 
 To be fixed/implemented:
-	* At PC of slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to needing to do a forced restart. This is probably due to a bad cable or something, not this script.
+	* At PC of fast&slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to a restart to restore connection. This is probably due to a bad cable or something, not this script.
 
 	* Introduce some variable that stores the temperature at different moments in time?
 		--> Use 'real' temperature vs. just storing temperature if we set it to something different.
 '''
 
-class Temperature_controller:
+class Temperature_controller():
 	'''
 	This is the superclass. It cannot be used directly, but all temperature controllers inherit from it. 
 	So, basically, if you change something here, it will change something in all classes. Usefull for things that all classes do, so for instance the ramping function.
@@ -52,12 +52,16 @@ class Temperature_controller:
 			raise serial.SerialException('Wrong comport, find the correct comport in Device Manager (run-->devmgmt.msc)')
 		
 	def closecom(self):
-		# close port if comport is open
+		'''
+		Close port if comport is open.
+		'''
 		if self.com.isOpen(): 
 			self.com.close()
 			
 	def opencom(self):
-		# open port if comport is closed
+		'''
+		Open port if comport is closed.
+		'''
 		if not self.com.isOpen():
 			self.com.open()
 		
@@ -65,25 +69,28 @@ class Temperature_controller:
 		'''
 		Setting temperature values of parameters. Does not return anything.
 		'''
-		self.opencom()
+		#self.opencom()
 		self.com.write( command.encode() )
 		self._flush()
-		self.closecom()
+		#self.closecom()
 		
 	def _in_command(self,command):
 		'''
 		Asking for parameters or temperatures to be returned. Returns raw message.
 		'''
-		self.opencom()
+		#self.opencom()
 		self.com.write( command.encode() )
 		time.sleep(0.1)
 		readlength=self.com.inWaiting()
 		message = self.com.read(readlength)
 		self._flush()
-		self.closecom()
+		#self.closecom()
 		return message
 	
 	def _flush(self):
+		'''
+		Flush the connection.
+		'''
 		self.com.flushInput()
 		self.com.flushOutput()
 		
@@ -106,7 +113,7 @@ class Temperature_controller:
 		IN:
 			* Tinit     : Start temperature of ramp in deg C.
 			* Tend      : Final temperature of ramp in deg C.
-			* dT        : Tempearture step of ramp in deg C.
+			* dT        : Temperature step of ramp in deg C.
 			* totaltime : Total time of measurement in *seconds*.
 			* ask       : Boolean, if True, will give all experimental info and wait for user conformation. If False, it will just start.
 			* self      : The object used to control temperature device.
@@ -164,7 +171,7 @@ class Temperature_controller:
 	        
 	def ramp_steptime(self,Tinit,Tend,dT,steptime,ask,verbose=False):
 		'''
-		Equivalent to _ramp(), but uses steptime instead of totaltime	
+		Equivalent to ramp(), but uses steptime instead of totaltime	
 		Makes a block temperature ramp with device for controlling temperature.
 
 		IN:
@@ -183,8 +190,8 @@ class Temperature_controller:
 	
 	def ramp_smooth(self,Tinit,Tend,totaltime,ask,verbose):
 		'''
-		Equivalent to _ramp(), but with dT = 0.01 preset.
-		Makes a continues temperature ramp (as much as we can with our setup) with device for controlling temperature.
+		Equivalent to ramp(), but with dT = 0.01 preset.
+		Makes a continues temperature ramp (or as close to it as we can with our setup) with device for controlling temperature.
 
 		IN:
 			* Tinit     : Start temperature of ramp in deg C.
@@ -197,17 +204,14 @@ class Temperature_controller:
 		dT = 0.01
 		self._ramp(Tinit,Tend,dT,totaltime,ask,verbose)
 		
-	def changet(temp,self):
+	def changet(self,temp):
 		"""
 		Changes temperature of temperature control unit to temp, and checks if it was succesfull.
 		Number will be rounded to 2 decimals.
 		"""
 		temp = round(temp,2) 	# In case somebody still puts in ##.###, note that ##.# or ## is no problem
-		
 		self.opencom()
-	  
-		setcheck=False 	 	# Sometimes setting the temp goes wrong and the first two digits are left out thats why we here check if the actual setpoint is the same as the desired setpoint
-							# Or sometimes the whole communication fails with rs232 port 
+		setcheck=False 	 	# Sometimes setting the temp goes wrong and the first two digits are left out thats why we here check if the actual setpoint is the same as the desired setpoint, or sometimes the whole communication fails with rs232 port 
 		i=0
 		while setcheck==False:
 			i=i+1
@@ -215,7 +219,7 @@ class Temperature_controller:
 			time.sleep(1)
 			try:				 	 	 	 	 	# In case reading data leads to error, disconnect and reconnect (sometimes happens with Julabo)
 				settemp = self._readtemp_set()
-				setcheck = (settemp==temp or settemp == 0 )	# If settemp is '0', it is Unimplemented for whatever reason and we continue without checking.
+				setcheck = (settemp==temp or settemp == 0 )	# If settemp is '0', it is unimplemented for whatever reason and we continue without checking.
 				if not setcheck: 	 	 	 	 	# If temperature was not set correctly, throw an error and handle together with 'real' errors
 					raise serial.SerialException("the wrong temperature was set")
 			except Exception as e:
@@ -230,10 +234,10 @@ class Temperature_controller:
 				time.sleep(2)
 				self.opencom()
 							
-		self.closecom()
+		#self.closecom()
 		print("Temperature set to %.2f deg C." % (temp,) )
 	
-class haake:
+class haake(Temperature_controller):
 	'''
 	DO NOT USE DIRECTLY, USE FOR INSTANCE 'haakeF6' OR 'haakePhoenix'!
 	This is the class from which all Haake watherbaths can inherit - since the functions are the same anyway.
@@ -241,7 +245,7 @@ class haake:
 	Cool innit?
 	'''
 	def __init__(self,comport):
-		Temperature_controller.__init__(comport)
+		super().__init__(comport)
 	
 	def _readtemp_internal(self):
 		'''
@@ -313,18 +317,19 @@ class haake:
 		alarm_stop_command = "ER\r"
 		self._out_command( alarm_stop_command )
 	
-class haakeF6:
+class haakeF6(haake):
 	'''
 	Class for controlling HaakeF6 waterbath.
 	Inherits from haake superclass. Look there for the functions you might need.
 	'''
 	
 	def __init__(self,comport):
-		haake.__init__(comport)
+		super().__init__(comport)
 		self.com = self._initialize_connection (baudrate=4800,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
+		self.opencom()
 		
 		
-class haakePhoenix:
+class haakePhoenix(haake):
 	'''
 	Class for controlling Haake Phoenix C25P waterbath.
 	Changing the temperature correction factor is not functional for unknown reasons, the rest is.
@@ -332,33 +337,35 @@ class haakePhoenix:
 	Always start by starting the pump using haakePhoenix.start_pump(), as it does not start automatically.
 	'''
 	def __init__(self,comport):
-		haake.__init__(comport)
+		super().__init__(comport)
 		self.com = self._initialize_connection(baudrate=9600,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
+		self.opencom()
 
 	
-class julabo:
+class julabo(Temperature_controller):
 	'''
 	Class for controlling Julabo F25 waterbath.
 	(If we ever get another Julabo waterbath, we can convert this to a superclass like 'haake')
 	'''
 	
 	def __init__(self,comport):
-		Temperature_controller.__init__(comport)
+		super().__init__(comport)
 		self.com = self._initialize_connection(4800,bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,timeout=5, xonxoff=False,rtscts=False,write_timeout=5,inter_byte_timeout=None)
+		self.opencom()
 		
 	def _set_temperature(self,temperature):
 		'''
 		Changes set temperature of waterbath to 'temperature'. DO NOT USE DIRECTLY, USE changet() INSTEAD!
 		'''
 		settemp_command = "out_sp_00 %06.2f\r" % (float(temperature),)
-		self._out_command( settemp_command.encode() )
+		self._out_command( settemp_command )
 			
 	def status(self):
 		'''
 		Reads any messages or error codes from the machine.
 		'''
 		readtemp_I_command = "in_pv_00\r"
-		message = self._in_command( readtemp_I_command.encode() )
+		message = self._in_command( readtemp_I_command )
 		print(message)
 	
 	def _readtemp_set(self):
@@ -366,7 +373,7 @@ class julabo:
 		Reads out set temperature.
 		'''
 		readtemp_S_command = "in_sp_00\r"
-		message = self._in_command( readtemp_S_command.encode() )
+		message = self._in_command( readtemp_S_command )
 		message_cleaned = str(message[0:-2])
 		message_cleaned2 = message_cleaned.replace("\\xb","")
 		message_cleaned3 = message_cleaned2[2:7]
@@ -378,7 +385,7 @@ class julabo:
 		Reads out internal temperature.
 		'''
 		readtemp_I_command = "in_pv_00\r"
-		message = self._in_command( readtemp_I_command.encode() )
+		message = self._in_command( readtemp_I_command )
 		message_cleaned = str(message[0:-2])
 		message_cleaned2 = message_cleaned.replace("\\xb","")
 		message_cleaned3 = message_cleaned2[2:7]
@@ -390,14 +397,14 @@ class julabo:
 		Starts the pump and heating/cooling elements of this waterbath.
 		'''
 		start_P_command = "out_mode_05 1\r"
-		self._out_command( start_P_command.encode() )
+		self._out_command( start_P_command )
 		
 	def stop_pump(self):
 		'''
 		Stops the pump and heating/cooling elements of this waterbath.
 		'''
 		stop_P_command = "out_mode_05 0\r"
-		self._out_command( stop_P_command.encode() )
+		self._out_command( stop_P_command )
 		
 	def wiggle(self,temp,time=120):
 		'''
@@ -412,7 +419,7 @@ class julabo:
 			for i in time:
 				time.sleep(1)
 		
-class electric:
+class electric(Temperature_controller):
 	'''
 	Class for controlling the electric peltier-element-based heater.
 	Note that we can control the temperature of the three components seperatly by
@@ -422,9 +429,10 @@ class electric:
 	succesfull in the electric control unit. Thread carfully.
 	'''
 	def __init__(self,comport):
-		Temperature_controller.__init__(comport)
+		super().__init__(comport)
 		print('WARNING, the temperature will be set to 22.22 deg C to make sure the comport is configured correctly.')
 		self.com = self._initialize_connection(9600,bytesize=serial.SEVENBITS,parity=serial.PARITY_EVEN,stopbits=serial.STOPBITS_TWO,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,inter_byte_timeout=None)
+		self.opencom()
 		self.changet_all(22.22)
 		
 	def _datagenelec(self, temp, controller): #
@@ -477,7 +485,7 @@ class electric:
 		'''
 		self.set_temperature_controller(temperature,[1,2,3],False)
 		
-class thermo:
+class thermo(Temperature_controller):
 	'''
 	UNDER CONSTRUCTION.
 	NOT READY FOR USE.
@@ -485,8 +493,9 @@ class thermo:
 	'''
 	
 	def __init__(self,comport):
-		Temperature_controller.__init__(comport)
+		super().__init__(comport)
 		self.com = self._initialize_connection(9600,bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
+		self.opencom()
 		
 	def _readtemp_set(self):
 		self.com.write("RS\r".encode()) 
