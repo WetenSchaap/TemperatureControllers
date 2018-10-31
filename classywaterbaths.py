@@ -2,6 +2,7 @@ import serial
 import time
 import warnings
 import math
+import sys
 
 '''
 @author: Piet Swinkels
@@ -27,6 +28,18 @@ To be fixed/implemented:
 	* Introduce some variable that stores the temperature at different moments in time?
 		--> Use 'real' temperature vs. just storing temperature if we set it to something different.
 '''
+
+
+if 'win' in sys.platform:
+	try:
+		wv = sys.getwindowsversion()
+		if wv.major <= 5: # If using windows 5 (WINDOWS XP) or below, give a warning
+			print("*****I SMELL WINDOWS XP*****")
+			warnings.warn("The serial ports have the tendency to loose connection when connected for extended periods of time without commands comming in. Therefore, I advise using the 'wiggle' function as an alternative to 'changet'. This wiggles the temperature by 0.01 degrees every 2 minutes. This way, connection will not be lost and you will be safe!")
+			print("*****I STILL SMELL WINDOWS XP*****")
+	except:
+		pass
+
 
 class Temperature_controller():
 	'''
