@@ -69,22 +69,22 @@ class Temperature_controller():
 		'''
 		Setting temperature values of parameters. Does not return anything.
 		'''
-		self.opencom()
+		#self.opencom()
 		self.com.write( command.encode() )
 		self._flush()
-		self.closecom()
+		#self.closecom()
 		
 	def _in_command(self,command):
 		'''
 		Asking for parameters or temperatures to be returned. Returns raw message.
 		'''
-		self.opencom()
+		#self.opencom()
 		self.com.write( command.encode() )
 		time.sleep(0.1)
 		readlength=self.com.inWaiting()
 		message = self.com.read(readlength)
 		self._flush()
-		self.closecom()
+		#self.closecom()
 		return message
 	
 	def _flush(self):
@@ -234,7 +234,7 @@ class Temperature_controller():
 				time.sleep(2)
 				self.opencom()
 							
-		self.closecom()
+		#self.closecom()
 		print("Temperature set to %.2f deg C." % (temp,) )
 	
 class haake(Temperature_controller):
@@ -253,8 +253,7 @@ class haake(Temperature_controller):
 		'''
 		readtemp_I_command = "F1\r"
 		message = self._in_command(readtemp_I_command)
-		temp = float(message[3:8])
-		return temp
+		return self._haake_temp_parser(message) # Which is temperature parsed from output
 		
 	def _readtemp_external(self):
 		'''
@@ -262,8 +261,7 @@ class haake(Temperature_controller):
 		'''
 		readtemp_E_command = "F2\r"
 		message = self._in_command(readtemp_E_command)
-		temp = float(message[3:8])
-		return temp
+		return self._haake_temp_parser(message) # Which is temperature parsed from output
 	
 	def _readtemp_set(self):
 		'''
@@ -271,8 +269,7 @@ class haake(Temperature_controller):
 		'''
 		readtemp_S_command = "R SW\r"
 		message = self._in_command(readtemp_S_command)
-		temp = float(message[3:8])
-		return temp
+		return self._haake_temp_parser(message) # Which is temperature parsed from output
 	
 	def _set_temperature(self,temperature):
 		'''
@@ -280,6 +277,17 @@ class haake(Temperature_controller):
 		'''
 		settemp_command = "S  %i\r" % (round(float(temperature) * 100),)
 		self._out_command( settemp_command )
+		
+		def _haake_temp_parser(self,message):
+			'''
+			Parses what the Haake returns into a readable temperature.
+			The Haake returns something like 'SW+03100' which equals 31 degree C.
+			'''
+			try:
+				return float(message[3:8])
+			except ValueError:
+				# Sorta quick hack: Sometimes, return format is different (for reasons I did not look into), so try other extraction type
+				return float(message[5:10])
 		
 	def read_RTA_internal(self):
 		'''
@@ -326,6 +334,7 @@ class haakeF6(haake):
 	def __init__(self,comport):
 		super().__init__(comport)
 		self.com = self._initialize_connection (baudrate=4800,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
+		self.opencom()
 		
 		
 class haakePhoenix(haake):
@@ -338,6 +347,7 @@ class haakePhoenix(haake):
 	def __init__(self,comport):
 		super().__init__(comport)
 		self.com = self._initialize_connection(baudrate=9600,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
+		self.opencom()
 
 	
 class julabo(Temperature_controller):
@@ -349,6 +359,7 @@ class julabo(Temperature_controller):
 	def __init__(self,comport):
 		super().__init__(comport)
 		self.com = self._initialize_connection(4800,bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,timeout=5, xonxoff=False,rtscts=False,write_timeout=5,inter_byte_timeout=None)
+		self.opencom()
 		
 	def _set_temperature(self,temperature):
 		'''
@@ -429,6 +440,7 @@ class electric(Temperature_controller):
 		super().__init__(comport)
 		print('WARNING, the temperature will be set to 22.22 deg C to make sure the comport is configured correctly.')
 		self.com = self._initialize_connection(9600,bytesize=serial.SEVENBITS,parity=serial.PARITY_EVEN,stopbits=serial.STOPBITS_TWO,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,inter_byte_timeout=None)
+		self.opencom()
 		self.changet_all(22.22)
 		
 	def _datagenelec(self, temp, controller): #
@@ -491,6 +503,7 @@ class thermo(Temperature_controller):
 	def __init__(self,comport):
 		super().__init__(comport)
 		self.com = self._initialize_connection(9600,bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
+		self.opencom()
 		
 	def _readtemp_set(self):
 		self.com.write("RS\r".encode()) 
