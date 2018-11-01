@@ -294,13 +294,14 @@ class haake(Temperature_controller):
 	def _haake_temp_parser(self,message):
 		'''
 		Parses what the Haake returns into a readable temperature.
-		The Haake returns something like 'SW+03100' which equals 31 degree C.
+		The Haake returns something like b'$\r\nSW+033.99$\r\n' which equals +33.99 degree C.
 		'''
+		#print(message)
 		try:
 			return float(message[3:8])
 		except ValueError:
 			# Sorta quick hack: Sometimes, return format is different (for reasons I did not look into), so try other extraction type
-			return float(message[5:10])
+			return float(message[5:12])
 		
 	def read_RTA_internal(self):
 		'''
