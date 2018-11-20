@@ -3,6 +3,7 @@ import time
 import warnings
 import math
 import sys
+import datetime
 
 '''
 @author: Piet Swinkels
@@ -35,7 +36,9 @@ if 'win' in sys.platform:
 		wv = sys.getwindowsversion()
 		if wv.major <= 5: # If using windows 5 (WINDOWS XP) or below, give a warning
 			print("*****I SMELL WINDOWS XP*****")
+			time.sleep(1)
 			warnings.warn("The serial ports have the tendency to loose connection when connected for extended periods of time without commands comming in. Therefore, I advise using the 'wiggle' function as an alternative to 'changet'. This wiggles the temperature by 0.01 degrees every 2 minutes. This way, connection will not be lost and you will be safe!")
+			time.sleep(1)
 			print("*****I STILL SMELL WINDOWS XP*****")
 	except:
 		pass
@@ -119,7 +122,7 @@ class Temperature_controller():
 		'''
 		return 0
 		
-	def ramp(self,Tinit,Tend,dT,totaltime,ask,verbose=False):
+	def ramp(self,Tinit,Tend,dT,totaltime,ask=True,verbose=False):
 		'''
 		Makes a block temperature ramp with device for controlling temperature.
 
@@ -129,24 +132,28 @@ class Temperature_controller():
 			* dT        : Temperature step of ramp in deg C.
 			* totaltime : Total time of measurement in *seconds*.
 			* ask       : Boolean, if True, will give all experimental info and wait for user conformation. If False, it will just start.
-			* self      : The object used to control temperature device.
 			* verbose   : Boolean, set to True to get all debug info.
 		'''
 		
 		t00 = time.clock() 	 	 	 	 	 	 	 	 	# Initialize internal clock (in seconds)
-		steps = round((Tend-Tinit)/dT)	 	 		 	 	 	# Number of steps
-		Trange = [round(Tinit + i*dT,2) for i in range(0,steps+1)] # Temperatures we will visit
+		steps = abs(round((Tend-Tinit)/dT))	 	 		 	# Number of steps
+		if Tinit > Tend: # Ramp down
+			Trange = [round(Tinit - i*dT,2) for i in range(0,steps+1)] # Temperatures we will visit
+		elif Tinit < Tend: # Ramp up
+			Trange = [round(Tinit + i*dT,2) for i in range(0,steps+1)] # Temperatures we will visit
+		else:
+			raise ValueError('Detected problem with either Tinit or Tend value, they are probably equal to two decimals.')
 		
 		print('Temperature range is given by:\n'+str(Trange))
 		
 		waittime = totaltime / len(Trange) 						# Waiting time between steps in sec
-		waittimemin = waittime / 60 	 	 		 		 	# Waiting time between steps in min
-		waittimeh = waittimemin / 60 							# Waiting time between steps in hours
-		totaltimeh = totaltime / 60 / 60						# Total time in hours
+		fwaittime = str(datetime.timedelta(seconds=waittime))	# Formatted time for display
+		ftotaltime = str(datetime.timedelta(seconds=totaltime))	# Idem dito
 		
-		
-		print('The waiting time between each step is %.2f minutes / %.2f hours.' % (waittimemin,waittimeh))
-		print('The total time of this ramp is %.2f hours.' % (totaltimeh,))
+		print('The waiting time between each step is %s.' % (fwaittime,))
+		if waittime <= 10:
+			warnings.warn("The waiting step between 2 temperatures is probably to small for the waterbath to keep up. I suggest you try using a longer time.",)
+		print('The total time of this ramp is %s.' % (ftotaltime,))
 		
 		if ask:
 			test = input("Press enter to start ramp, press q to abort.")
@@ -154,24 +161,29 @@ class Temperature_controller():
 				raise ValueError("Aborted measurement before start.")
 				
 		t0=time.clock()
-		
-		print('Starting at internal clock time: %i sec.' % (int(round(t0))))
+		ft0 = str(datetime.timedelta(seconds=t0))
+		print('Starting at internal clock time: %s.' % (ft0,))
 		
 		for T in Trange:
 			tnew = time.clock()
-			print('Changing temperature to %.2f deg C at internal time: %.2f sec.' % (T,tnew))
-			pasttime = int(round(tnew-t0))/60
-			print('Time past since last temperature change: %.2f minutes.' % (pasttime,) )
-			#print('difference in time before last change not rounded '+str(tnew-t0))
-			t0 = tnew		
-			
-			self.changet(T)
-			
-			tafterchange = time.clock()
-			tcorrection = tafterchange-t0
+			ftnew = str(datetime.timedelta(seconds=round(time.clock())))
+			print('%s\t-\t Changing temperature to %.2f deg C...' % (ftnew,T))
+			pasttime = int(round(tnew-t0))
+			fpasttime = str(datetime.timedelta(seconds=pasttime))
 			if verbose:
-				print('time it took to change sp '+str(round(tafterchange-t0)))
-				print('time it took to change sp not trounded '+str(tafterchange-t0))
+				print('Time past since last temperature change: %s.' % (fpasttime,) )
+				#print('difference in time before last change not rounded '+str(tnew-t0))
+			ftnew = str(datetime.timedelta(seconds=round(time.clock())))
+			print('%s\t-\t' % (ftnew,), end='')
+			
+			tbeforechange = time.clock()
+			self.changet(T)
+			tafterchange = time.clock()
+			
+			tcorrection = tafterchange-tbeforechange
+			if verbose:
+				print('time it took to change sp '+str(round(tcorrection)))
+				print('time it took to change sp not trounded '+str(tcorrection))
 			
 			# This weird thing makes it possible to interrupt sleeping
 			slptime = math.floor(waittime-tcorrection)
@@ -179,10 +191,11 @@ class Temperature_controller():
 				time.sleep(1)
 			time.sleep(waittime-tcorrection-slptime)
 			
-		print('Total time of the measurement: %.2f minutes / %.2f hours.' % ((time.clock()-t00) / 60 , (time.clock()-t00) /60/60) )
-	
-	        
-	def ramp_steptime(self,Tinit,Tend,dT,steptime,ask,verbose=False):
+		ffinaltime = str(datetime.timedelta(seconds=round(time.clock()-t00)))
+		print('Ramp completed.\nTotal time of the ramp: %s.' % (ffinaltime,) )
+
+
+	def ramp_steptime(self,Tinit,Tend,dT,steptime,ask=True,verbose=False):
 		'''
 		Equivalent to ramp(), but uses steptime instead of totaltime	
 		Makes a block temperature ramp with device for controlling temperature.
@@ -193,15 +206,14 @@ class Temperature_controller():
 			* dT        : Tempearture step of ramp in deg C.
 			* steptime  : Total time of a step in *seconds*.
 			* ask       : Boolean, if True, will give all experimental info and wait for user conformation. If False, it will just start.
-			* self      : The object used to control temperature device.
 			* verbose   : Boolean, set to True to get all debug info.
 		'''
-		steps = round((Tend-Tinit)/dT)	 	 		 	 	 	# Number of steps
+		steps = abs(round((Tend-Tinit)/dT))	 	 		 	 	 	# Number of steps
 		Trange = [round(Tinit + i*dT,2) for i in range(0,steps+1)] # Temperatures we will visit
 		totaltime = len(Trange) * steptime
-		self._ramp(Tinit,Tend,dT,totaltime,ask,verbose)
+		self.ramp(Tinit,Tend,dT,totaltime,ask,verbose)
 	
-	def ramp_smooth(self,Tinit,Tend,totaltime,ask,verbose):
+	def ramp_smooth(self,Tinit,Tend,totaltime,ask=True,verbose=False):
 		'''
 		Equivalent to ramp(), but with dT = 0.01 preset.
 		Makes a continues temperature ramp (or as close to it as we can with our setup) with device for controlling temperature.
@@ -211,11 +223,10 @@ class Temperature_controller():
 			* Tend      : Final temperature of ramp in deg C.
 			* totaltime : Total time of the experiment in *seconds*.
 			* ask       : Boolean, if True, will give all experimental info and wait for user conformation. If False, it will just start.
-			* self      : The object used to control temperature device.
 			* verbose   : Boolean, set to True to get all debug info.
 		'''
 		dT = 0.01
-		self._ramp(Tinit,Tend,dT,totaltime,ask,verbose)
+		self.ramp(Tinit,Tend,dT,totaltime,ask,verbose)
 		
 	def changet(self,temp):
 		"""
@@ -248,6 +259,8 @@ class Temperature_controller():
 				self.opencom()
 							
 		#self.closecom()
+		if i>1 and setcheck==True:
+			print("Recovered from error(s) succesfully.")
 		print("Temperature set to %.2f deg C." % (temp,) )
 	
 class haake(Temperature_controller):
@@ -296,20 +309,25 @@ class haake(Temperature_controller):
 		Parses what the Haake returns into a readable temperature.
 		The Haake returns something like b'$\r\nSW+033.99$\r\n' which equals +33.99 degree C.
 		'''
-		#print(message)
+		#print(message) #For debug
 		try:
-			return float(message[3:8])
+			return float(message[2:9])
 		except ValueError:
-			# Sorta quick hack: Sometimes, return format is different (for reasons I did not look into), so try other extraction type
-			return float(message[5:12])
-		
+			# Sorta quick hack: Sometimes, return format is different (it adds leading '$\r\n' for reasons I did not look into), so try other extraction type
+			try:
+				return float(message[5:12])
+			# If it still doesn't work, give detailed error response.
+			except Exception as e:
+				#print(e) #For debug
+				raise ValueError("Parser could not read haake response: '%s'" % (str(message),))
+
 	def read_RTA_internal(self):
 		'''
 		Reads the internal temperature correction factor c.
 		'''
 		readRTA_I_command = "R CI\r"
 		message = self._in_command( readRTA_I_command )
-		c = float(message[2:9].decode())
+		c = self._haake_temp_parser( message )
 		time.sleep(1)
 		self._flush()
 		return c,message
@@ -318,7 +336,7 @@ class haake(Temperature_controller):
 		'''
 		WARNING. THIS CHANGES THE CORRECTION FACTOR 'C', LEADING TO A DIFFERENT INTERNAL TEMPERATURE.
 		NEVER CHANGE THIS IF YOU DO NOT NOW WHAT YOU ARE DOING!
-		In case you screw up, +1.00 seems to be a sort of okay value.
+		In case you screw up, +0.50 seems to be a sort of okay value.
  		'''
 		setRTA_I_command = "W CI %.2f\r" % (setc,)
 		self._out_command( setRTA_I_command )
