@@ -58,7 +58,7 @@ class Temperature_controller():
 		return message 
 	
 	def __str__(self):
-		message = "Connection to Haake F6 at comport:\t%s\nInternal temperature is currently:\t%.2f\nSet temperature is currently:\t%.2f\n" % (self.comport,self._readtemp_internal(),self._readtemp_set())
+		message = "Connection to Temperature_controller at comport:\t%s\nInternal temperature is currently:\t%.2f\nSet temperature is currently:\t%.2f\n" % (self.comport,self._readtemp_internal(),self._readtemp_set())
 		return message
 	
 	def _initialize_connection (self,baudrate,bytesize,parity,stopbits,timeout=None,xonxoff=False,rtscts=False,write_timeout=None,dsrdtr=False,inter_byte_timeout=None):
@@ -81,26 +81,31 @@ class Temperature_controller():
 		if not self.com.isOpen():
 			self.com.open()
 		
-	def _out_command(self,command):
+	def _out_command(self,command,flush=True):
 		'''
 		Setting temperature values of parameters. Does not return anything.
+		Has error catching mechanism --> sometimes "SerialException: WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))" is thrown after long stretch of inactivity. Manually, you can solve this by just restarting 'ju = julabo('com4')' etc.. This is an attempt to do this automatically, so a ramp or something will not be disturbed.
 		'''
-		#self.opencom()
-		self.com.write( command.encode() )
-		self._flush()
-		#self.closecom()
+		try:
+			self.com.write( command.encode() )
+		except serial.SerialException:
+			print('I detected that the connection to the device has probably been interupted. I will try to reset the connection. This may fail however!')
+			print(">>>REINITIALISING CONNECTION<<<")
+			self.__init__(self.comport)
+			self.com.write( command.encode() )
+			print(">>>REINITIALISATION SUCCESFULL<<<")
+		if flush:
+			self._flush() # To remove command from buffer
 		
 	def _in_command(self,command):
 		'''
 		Asking for parameters or temperatures to be returned. Returns raw message.
 		'''
-		#self.opencom()
-		self.com.write( command.encode() )
+		self._out_command(command,False) # use _out_command to send message
 		time.sleep(0.1)
 		readlength=self.com.inWaiting()
 		message = self.com.read(readlength)
-		self._flush()
-		#self.closecom()
+		self._flush() # to remove command(and answer) from buffer
 		return message
 	
 	def _flush(self):
