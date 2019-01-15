@@ -10,10 +10,10 @@ import datetime
 Based on simonexp.py, written by Simon Stuij. I just put everything from simonexp.py in classes so that we can control two systems simultaniously. I also added support for haakeF6 and haakePhoenix, and made everything a bit more uniform.
 
 All these classes are used in a very similar way. First, we assign the class of the 
-machine we want to use to a variable with the corect comport (see devices and printers). 
+machine we want to use to a variable with the corect comport (see devices and printers), so for instance 'ju = julabo('com4')'. 
 We can then set the temperature using self.changet(temp), and ramp the temperature
-using self.ramp(Tinit,Tend,dT,totaltime). Note that all machines/classes are harmonized as much as possible,
-but it's not perfect. Read it for a minute, or at least ask someone about it. Please.
+using self.ramp(Tinit,Tend,dT,totaltime).
+Note that all machines/classes are harmonized as much as possible, but it's not perfect. Read it for a minute, or at least ask someone about it. Please.
 
 Guide for adding new machines:
 	* Every class should *at least* contain a function:
@@ -30,7 +30,7 @@ To be fixed/implemented:
 		--> Use 'real' temperature vs. just storing temperature if we set it to something different.
 '''
 
-
+# This checks if you are using a Windows XP machine, and if so, gives a small lecture about the dangers of Windows XP and serialports.
 if 'win' in sys.platform:
 	try:
 		wv = sys.getwindowsversion()
@@ -58,10 +58,16 @@ class Temperature_controller():
 		return message 
 	
 	def __str__(self):
+		'''
+		This is returned if you do print(Temperature_controller)
+		'''
 		message = "Connection to Temperature_controller at comport:\t%s\nInternal temperature is currently:\t%.2f\nSet temperature is currently:\t%.2f\n" % (self.comport,self._readtemp_internal(),self._readtemp_set())
 		return message
 	
 	def _initialize_connection (self,baudrate,bytesize,parity,stopbits,timeout=None,xonxoff=False,rtscts=False,write_timeout=None,dsrdtr=False,inter_byte_timeout=None):
+		'''
+		Does what you think it does. It makes a connection to the waterbathe with given parameters.
+		'''
 		try: 
 			return serial.Serial(self.comport,baudrate=4800,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
 		except serial.SerialException:
@@ -83,7 +89,7 @@ class Temperature_controller():
 		
 	def _out_command(self,command,flush=True):
 		'''
-		Setting temperature values of parameters. Does not return anything.
+		Setting values of parameters. Does not return anything. Fot instance, can set the temperature.
 		Has error catching mechanism --> sometimes "SerialException: WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))" is thrown after long stretch of inactivity. Manually, you can solve this by just restarting 'ju = julabo('com4')' etc.. This is an attempt to do this automatically, so a ramp or something will not be disturbed.
 		'''
 		try:
@@ -99,7 +105,7 @@ class Temperature_controller():
 		
 	def _in_command(self,command):
 		'''
-		Asking for parameters or temperatures to be returned. Returns raw message.
+		Asking for parameters or temperatures to be returned by waterbath. Returns raw message.
 		'''
 		self._out_command(command,False) # use _out_command to send message
 		time.sleep(0.1)
@@ -147,7 +153,7 @@ class Temperature_controller():
 		elif Tinit < Tend: # Ramp up
 			Trange = [round(Tinit + i*dT,2) for i in range(0,steps+1)] # Temperatures we will visit
 		else:
-			raise ValueError('Detected problem with either Tinit or Tend value, they are probably equal to two decimals.')
+			raise ValueError('Detected problem with either Tinit or Tend value, they are probably equal.')
 		
 		print('Temperature range is given by:\n'+str(Trange))
 		
@@ -164,31 +170,45 @@ class Temperature_controller():
 			test = input("Press enter to start ramp, press q to abort.")
 			if 'q' in test:
 				raise ValueError("Aborted measurement before start.")
-				
+			else:
+				pass
+			
 		t0=time.clock()
 		ft0 = str(datetime.timedelta(seconds=t0))
-		print('Starting at internal clock time: %s.' % (ft0,))
+		
+		if verbose:
+			print('Starting at internal clock time: %s.' % (ft0,))
+		
+		print('Starting ramp at:', datetime.datetime.now())
 		
 		for T in Trange:
 			tnew = time.clock()
-			ftnew = str(datetime.timedelta(seconds=round(time.clock())))
-			print('%s\t-\t Changing temperature to %.2f deg C...' % (ftnew,T))
+			tbeforechange = time.clock()
+			if verbose:
+				ftnew = str(datetime.timedelta(seconds=round(time.clock())))
+				print('Internal time - %s\t-\t Changing temperature to %.2f deg C...' % (ftnew,T))
+				
+			print(datetime.datetime.now().time(), "- Changing temperature to %.2f deg C..." % (T,))
 			pasttime = int(round(tnew-t0))
 			fpasttime = str(datetime.timedelta(seconds=pasttime))
-			if verbose:
-				print('Time past since last temperature change: %s.' % (fpasttime,) )
-				#print('difference in time before last change not rounded '+str(tnew-t0))
 			ftnew = str(datetime.timedelta(seconds=round(time.clock())))
-			print('%s\t-\t' % (ftnew,), end='')
 			
-			tbeforechange = time.clock()
+			if verbose:
+				fpasttime = str(datetime.timedelta(seconds=pasttime))
+				ftnew = str(datetime.timedelta(seconds=round(time.clock())))
+				print('Time past since last temperature change: %s.' % (fpasttime,))
+				print('Internal time at changing Temperature - %s' % (ftnew,))
+				#print('difference in time before last change not rounded '+str(tnew-t0))
+			
+			
 			self.changet(T)
 			tafterchange = time.clock()
 			
 			tcorrection = tafterchange-tbeforechange
+			
 			if verbose:
-				print('time it took to change sp '+str(round(tcorrection)))
-				print('time it took to change sp not trounded '+str(tcorrection))
+				print('time it took to change Temperature '+str(round(tcorrection)))
+				print('time it took to change Temperature not rounded '+str(tcorrection))
 			
 			# This weird thing makes it possible to interrupt sleeping
 			slptime = math.floor(waittime-tcorrection)
@@ -236,7 +256,7 @@ class Temperature_controller():
 	def changet(self,temp):
 		"""
 		Changes temperature of temperature control unit to temp, and checks if it was succesfull.
-		Number will be rounded to 2 decimals.
+		Number will be rounded to 2 decimals. Also print current time because that can be useful.
 		"""
 		temp = round(temp,2) 	# In case somebody still puts in ##.###, note that ##.# or ## is no problem
 		self.opencom()
@@ -266,7 +286,9 @@ class Temperature_controller():
 		#self.closecom()
 		if i>1 and setcheck==True:
 			print("Recovered from error(s) succesfully.")
-		print("Temperature set to %.2f deg C." % (temp,) )
+		
+		# Print confirmation of temperature setting, and current time because usefull.
+		print(datetime.datetime.now().time(),"- Temperature set to %.2f deg C." % (temp,) )
 	
 class haake(Temperature_controller):
 	'''
