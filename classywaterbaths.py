@@ -9,22 +9,23 @@ import datetime
 @author: Piet Swinkels
 Based on simonexp.py, written by Simon Stuij. I just put everything from simonexp.py in classes so that we can control two systems simultaniously. I also added support for haakeF6 and haakePhoenix, and made everything a bit more uniform.
 
+This scripts requires the 'PySerial' module. The script should be able to woek with  any version of this module (including very old ones that still work on Windows XP machines).
+
 All these classes are used in a very similar way. First, we assign the class of the 
 machine we want to use to a variable with the corect comport (see devices and printers), so for instance 'ju = julabo('com4')'. 
 We can then set the temperature using self.changet(temp), and ramp the temperature
-using self.ramp(Tinit,Tend,dT,totaltime).
-Note that all machines/classes are harmonized as much as possible, but it's not perfect. Read it for a minute, or at least ask someone about it. Please.
+using self.ramp(Tinit,Tend,dT,totaltime). All classes work exactly the same, although not all functionality is implemented in all classes.
 
 Guide for adding new machines:
 	* Every class should *at least* contain a function:
-			- _readtemp_set (okay, not really, but is really really usefull to have!)
+			- _readtemp_set (okay, not really, but is really inconvenient not to have this (looking at you electrical heating system)
 			- _set_temperature
 			These functions should contain a call to _in_command and _out command respectively, with the command found in the manual.
 	* Let the class inherit from the superclass Temperature_controller, or, if we allready have a controller from the brand, the brand Superclass (i.e. 'haake').
 	* Stuff should now work automatically
 
 To be fixed/implemented:
-	* At PC of fast&slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to a restart to restore connection. This is probably due to a bad cable or something, not this script.
+	* At PC of fast&slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to a restart to restore connection. This is probably due to the windows XP they are running, not this script.
 
 	* Introduce some variable that stores the temperature at different moments in time?
 		--> Use 'real' temperature vs. just storing temperature if we set it to something different.
@@ -35,11 +36,11 @@ if 'win' in sys.platform:
 	try:
 		wv = sys.getwindowsversion()
 		if wv.major <= 5: # If using windows 5 (WINDOWS XP) or below, give a warning
-			print("*****I SMELL WINDOWS XP*****")
+			print("*****I DETECT WINDOWS XP*****")
 			time.sleep(1)
-			warnings.warn("The serial ports have the tendency to loose connection when connected for extended periods of time without commands comming in. Therefore, I advise using the 'wiggle' function as an alternative to 'changet'. This wiggles the temperature by 0.01 degrees every 2 minutes. This way, connection will not be lost and you will be safe!")
+			warnings.warn("The serial ports have the tendency to loose connection when connected for extended periods of time without commands comming in on this version of Windows. Therefore, I advise using the 'wiggle' function as an alternative to 'changet'. This wiggles the temperature by 0.01 degrees every 2 minutes. This way, connection will not be lost and you will be safe!")
 			time.sleep(1)
-			print("*****I STILL SMELL WINDOWS XP*****")
+			print("*****END OF SAFETY MESSAGE*****")
 	except:
 		pass
 
@@ -392,20 +393,38 @@ class haakeF6(haake):
 	
 	def __init__(self,comport):
 		super().__init__(comport)
-		self.com = self._initialize_connection (baudrate=4800,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
+		self.com = self._initialize_connection (baudrate=4800,
+										  bytesize=serial.EIGHTBITS,
+										  parity=serial.PARITY_NONE,
+										  stopbits=serial.STOPBITS_ONE,
+										  timeout=5,
+										  xonxoff=False,
+										  rtscts=False,
+										  write_timeout=5,
+										  dsrdtr=False,
+										  inter_byte_timeout=None)
 		self.opencom()
 		
 		
 class haakePhoenix(haake):
 	'''
 	Class for controlling Haake Phoenix C25P waterbath.
-	Changing the temperature correction factor is not functional for unknown reasons, the rest is.
+	Changing the temperature correction factor is not functional for unknown reasons, the rest works fine.
 	Note that temperature given by the bath is of by about +0.8 degree C. (we cant correct internally due to weird non-functional RTA).
 	Always start by starting the pump using haakePhoenix.start_pump(), as it does not start automatically.
 	'''
 	def __init__(self,comport):
 		super().__init__(comport)
-		self.com = self._initialize_connection(baudrate=9600,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
+		self.com = self._initialize_connection(baudrate=9600,
+										 bytesize=serial.EIGHTBITS,
+										 parity=serial.PARITY_NONE,
+										 stopbits=serial.STOPBITS_ONE,
+										 timeout=5,
+										 xonxoff=False,
+										 rtscts=False,
+										 write_timeout=5,
+										 dsrdtr=False,
+										 inter_byte_timeout=None)
 		self.opencom()
 
 	
@@ -417,8 +436,33 @@ class julabo(Temperature_controller):
 	
 	def __init__(self,comport):
 		super().__init__(comport)
-		self.com = self._initialize_connection(4800,bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,timeout=5, xonxoff=False,rtscts=False,write_timeout=5,inter_byte_timeout=None)
+		self.com = self._initialize_connection(baudrate = 4800,
+										 bytesize=serial.EIGHTBITS,
+										 parity=serial.PARITY_NONE, 
+										 stopbits=serial.STOPBITS_ONE,
+										 timeout=5,
+										 xonxoff=False,
+										 rtscts=False,
+										 write_timeout=5,
+										 inter_byte_timeout=None)
 		self.opencom()
+		
+	def _julabo_temp_parser(self,message):
+		'''
+		in:
+			message - Raw output of the Julabo which contains temperature.
+		out:
+			Float representing the temperature in degree Celsius.
+			
+		The output of the Julabo looks something like this:
+			b'\xb26.33\x8d\n'
+		in which 26.33 is the temperature in Celsius.
+		'''
+		message_cleaned = str(message[0:-2])
+		message_cleaned2 = message_cleaned.replace("\\xb","")
+		message_cleaned3 = message_cleaned2[2:7]
+		return float(message_cleaned3)
+		
 		
 	def _set_temperature(self,temperature):
 		'''
@@ -441,10 +485,7 @@ class julabo(Temperature_controller):
 		'''
 		readtemp_S_command = "in_sp_00\r"
 		message = self._in_command( readtemp_S_command )
-		message_cleaned = str(message[0:-2])
-		message_cleaned2 = message_cleaned.replace("\\xb","")
-		message_cleaned3 = message_cleaned2[2:7]
-		settemp = float(message_cleaned3)
+		settemp = self._julabo_temp_parser(message)
 		return settemp
 	
 	def _readtemp_internal(self):
@@ -453,10 +494,14 @@ class julabo(Temperature_controller):
 		'''
 		readtemp_I_command = "in_pv_00\r"
 		message = self._in_command( readtemp_I_command )
-		message_cleaned = str(message[0:-2])
-		message_cleaned2 = message_cleaned.replace("\\xb","")
-		message_cleaned3 = message_cleaned2[2:7]
-		temp = float(message_cleaned3)
+		temp = self._julabo_temp_parser(message)
+		return temp
+	
+	def _readtemp_external(self):
+		readtemp_E_command = "in_pv_02\r"
+		message = self._in_command( readtemp_E_command )
+		print('Julabo returns:',message) # For debug
+		temp = self._julabo_temp_parser(message)
 		return temp
 
 	def start_pump(self):
@@ -498,7 +543,15 @@ class electric(Temperature_controller):
 	def __init__(self,comport):
 		super().__init__(comport)
 		print('WARNING, the temperature will be set to 22.22 deg C to make sure the comport is configured correctly.')
-		self.com = self._initialize_connection(9600,bytesize=serial.SEVENBITS,parity=serial.PARITY_EVEN,stopbits=serial.STOPBITS_TWO,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,inter_byte_timeout=None)
+		self.com = self._initialize_connection(9600,
+										 bytesize=serial.SEVENBITS,
+										 parity=serial.PARITY_EVEN,
+										 stopbits=serial.STOPBITS_TWO,
+										 timeout=5,
+										 xonxoff=False,
+										 rtscts=False,
+										 write_timeout=5,
+										 inter_byte_timeout=None)
 		self.opencom()
 		self.changet_all(22.22)
 		
