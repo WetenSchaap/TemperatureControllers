@@ -9,10 +9,10 @@ import datetime
 @author: Piet Swinkels
 Based on simonexp.py, written by Simon Stuij. I just put everything from simonexp.py in classes so that we can control two systems simultaniously. I also added support for haakeF6 and haakePhoenix, and made everything a bit more uniform.
 
-This scripts requires the 'PySerial' module. The script should be able to woek with  any version of this module (including very old ones that still work on Windows XP machines).
+This scripts requires the 'PySerial' module. The script should be able to work with  any version of this module (including very old ones that still work on Windows XP machines).
 
 All these classes are used in a very similar way. First, we assign the class of the 
-machine we want to use to a variable with the corect comport (see devices and printers), so for instance 'ju = julabo('com4')'. 
+machine we want to use to a variable with the correct comport (see devices and printers), so for instance 'ju = julabo('com4')'. 
 We can then set the temperature using self.changet(temp), and ramp the temperature
 using self.ramp(Tinit,Tend,dT,totaltime). All classes work exactly the same, although not all functionality is implemented in all classes.
 
@@ -96,8 +96,8 @@ class Temperature_controller():
 		try:
 			self.com.write( command.encode() )
 		except serial.SerialException:
-			print('I detected that the connection to the device has probably been interupted. I will try to reset the connection. This may fail however!')
-			print(">>>REINITIALISING CONNECTION<<<")
+			print('I detected that the connection to the device has been interupted. I will try to reset the connection. This may fail!')
+			print(">>> REINITIALISING CONNECTION <<<")
 			self.__init__(self.comport)
 			self.com.write( command.encode() )
 			print(">>>REINITIALISATION SUCCESFULL<<<")
