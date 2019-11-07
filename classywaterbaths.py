@@ -9,26 +9,39 @@ import datetime
 @author: Piet Swinkels
 Based on simonexp.py, written by Simon Stuij. I just put everything from simonexp.py in classes so that we can control two systems simultaniously. I also added support for haakeF6 and haakePhoenix, and made everything a bit more uniform.
 
+IF YOU DON'T KNOW ANYTHING ABOUT PROGRAMING/THIS IS YOUR FIRST TIME HERE, READ HERE:
+	1 Don't panic
+	2 First run this script (there is a play button somehwere to do that)
+	3 start by finding the USB port the heating unit is plugged in, type "find_available_comports(True)" in the screen to the right and press enter. read the help.
+	4 Now, which waterbath are you using? Probably the Julabo one, I will continue as if you chose that.
+	5 type "ju = julabo('[the name you found in step 3]')"
+	6 You should be ready to do stuff now! Possible commands are:
+		- 'ju.start_pump()' to start the waterbath
+		- 'ju.changet(30)' to set the temperature to 30
+		- 'ju.ramp_smooth(20,30,1000)' to change the temperature from 20 to 30 over the course of 1000 seconds.
+	7 For help/more commands, ask Piet, or try reading the scripts. text between '' is mostly helpfull comments to look at.
+		
 This scripts requires the 'PySerial' module. The script should be able to work with  any version of this module (including very old ones that still work on Windows XP machines).
 
 All these classes are used in a very similar way. First, we assign the class of the 
 machine we want to use to a variable with the correct comport (see devices and printers), so for instance 'ju = julabo('com4')'. 
-We can then set the temperature using self.changet(temp), and ramp the temperature
-using self.ramp(Tinit,Tend,dT,totaltime). All classes work exactly the same, although not all functionality is implemented in all classes.
+We can then trun on the pump by running self.start_pump(), set the temperature using self.changet(temp), and ramp the temperature using self.ramp(Tinit,Tend,dT,totaltime). All classes work exactly the same, although not all functionality is implemented in all classes.
 
 Guide for adding new machines:
 	* Every class should *at least* contain a function:
 			- _readtemp_set (okay, not really, but is really inconvenient not to have this (looking at you electrical heating system)
 			- _set_temperature
-			These functions should contain a call to _in_command and _out command respectively, with the command found in the manual.
+			These functions should contain a call to _in_command and _out command respectively, with the command found in the manual of the machine in question.
 	* Let the class inherit from the superclass Temperature_controller, or, if we allready have a controller from the brand, the brand Superclass (i.e. 'haake').
 	* Stuff should now work automatically
 
 To be fixed/implemented:
 	* At PC of fast&slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to a restart to restore connection. This is probably due to the windows XP they are running, not this script.
 
+TODO:
 	* Introduce some variable that stores the temperature at different moments in time?
 		--> Use 'real' temperature vs. just storing temperature if we set it to something different.
+	*Introduce a function that finds the possible ports (so you dont have to look for them somewhere.)
 '''
 
 # This checks if you are using a Windows XP machine, and if so, gives a small lecture about the dangers of Windows XP and serialports.
@@ -44,10 +57,22 @@ if 'win' in sys.platform:
 	except:
 		pass
 
+def find_available_comports(helpme=False):
+	'''
+	This function just lists all COMports that are available.
+	
+	'''
+	print("Available ports:")
+	for i in serial.tools.list_ports.comports():
+		print(i)
+	if helpme:
+		print("*******************HELP**********************")
+		print("The PC has multiple ports to communicate with outside devices, such as USB ports, but also bluetooth. We must tell Python on which port is our machine. Because the temp-controllers use a 'serial RS232' port, and this computer only has usb-ports, we use a converter. Each PC has a different brand converter, so thats why I cant just select one automatically. The list just printed will contain a comport name (i.e., 'COM4', or 'tty0') and a description. The description tells you what is attached to the PC. In this case we are looking for somethin along the lines of 'USB-to-Serial Conversion' or whatever. Remember the corresponding COMport name, and input that into the regular script. And that's it. Easypeasy." )
+		
 
 class Temperature_controller():
 	'''
-	This is the superclass. It cannot be used directly, but all temperature controllers inherit from it. 
+	This is the superclass (metaclass). It cannot be used directly, but all temperature controllers inherit from it. 
 	So, basically, if you change something here, it will change something in all classes. Usefull for things that all classes do, so for instance the ramping function.
 	This Class has great power, use with great responsibility.
 	'''
@@ -277,7 +302,7 @@ class Temperature_controller():
 			
 			if not setcheck:
 				if i > 3:
-					warnings.warn("Datatransfer failed %i times in a row, check connection. (I will not throw a real error, because sometimes feedback of machine doesn't work.)" % (i,) )
+					warnings.warn("Datatransfer failed %i times in a row, try diconnecting and reconnecting the usb cable. I will not throw a real error, because sometimes feedback of machine doesn't work, while temperature is changed corretly." % (i,) )
 					break
 				print("Something went wrong in datatransfer: %s.\nTrying again." % (ex, ))
 				self.closecom() # close com and open again to try and restore data connection
