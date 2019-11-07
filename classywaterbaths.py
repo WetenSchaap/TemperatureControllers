@@ -4,6 +4,7 @@ import warnings
 import math
 import sys
 import datetime
+import serial.tools.list_ports
 
 '''
 @author: Piet Swinkels
@@ -34,6 +35,9 @@ Guide for adding new machines:
 			These functions should contain a call to _in_command and _out command respectively, with the command found in the manual of the machine in question.
 	* Let the class inherit from the superclass Temperature_controller, or, if we allready have a controller from the brand, the brand Superclass (i.e. 'haake').
 	* Stuff should now work automatically
+
+Random Notes:
+    * On Linux machines, plugged in devices are by default not accesible without sudo. Use this to make it accesible by default: https://stackoverflow.com/questions/27858041/oserror-errno-13-permission-denied-dev-ttyacm0-using-pyserial-from-pyth
 
 To be fixed/implemented:
 	* At PC of fast&slow confocal, Julabo has the tendency to lose connection with PC if we don't invoke it often enough. This leads to a restart to restore connection. This is probably due to the windows XP they are running, not this script.
