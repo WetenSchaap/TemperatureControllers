@@ -112,3 +112,8 @@ dmypy.json
 
 # remove hidden stuff linux or whatever somtimes puts in folders
 .directory
+
+# do not upload log files
+*.log
+/log
+log/
