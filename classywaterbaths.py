@@ -1,11 +1,11 @@
 import serial
+import serial.tools.list_ports
 import time
 import warnings
 import math
 import sys
 import datetime
-import serial.tools.list_ports
-import logging # not functional yet
+import logging
 
 '''
 @author: Piet Swinkels
@@ -183,11 +183,48 @@ class Temperature_controller():
         '''
         return 0
     
+    def _readtemp_external(self):
+        '''
+        This function is made to be overridden in one of the child classes. Just to avoid errors in printing incomplete classes!
+        '''
+        return 0
+    
     def _readtemp_set(self):
         '''
         This function is made to be overridden in one of the child classes. Just to avoid errors in printing incomplete classes!
         '''
         return 0
+    
+    def passive_logging(self,time_interval = 15, verbose = False):
+        '''
+        Log the current internal temp/external temp/set temp every so often. I will continue this until I get killed manually!
+        time_interval sets the time in seconds between each logging. Minimum is quite low, 5 seconds is easily enough.
+        set verbose to True to also print the found values (as opposed to just logging them)
+        '''
+        print("Starting passive logging: I will note the temperatures every %f seconds. This will last indefinitly unless you kill me. To kill me, press crtl+c." % (time_interval,) )
+        logging.debug("Start passive logging")
+        while True:
+            ti = time.perf_counter()
+            Ti = self._readtemp_internal()
+            Te = self._readtemp_external()
+            Ts = self._readtemp_set()
+            tolog = "T_internal = %s, T_external = %s, T_set = %s" % (str(Ti),str(Te),str(Ts)) 
+            logging.info(tolog)
+            if verbose:
+                print(tolog)
+                
+            tf = time.perf_counter()
+            # correct for time spent logging and stuff, make sure ctrl+c is possible and time.sleep does not lockup python.
+            tcorrection = tf-ti
+            slptime = math.floor(time_interval-tcorrection)
+            if slptime <0:
+                logging.error("passive_logging time_interval chosen too short")
+                raise ValueError("time_interval too short! Passive logging impossible.")
+            for i in range(slptime):
+                time.sleep(1)
+            time.sleep(time_interval-tcorrection-slptime)
+            
+        
         
     def ramp(self,Tinit,Tend,dT,totaltime,ask=True,verbose=False):
         '''
@@ -543,7 +580,11 @@ class julabo(Temperature_controller):
         message_cleaned2 = message_cleaned.replace("\\xb","")
         message_cleaned3 = message_cleaned2[2:7]
         logging.debug("Temperature was parsed to '%s'" % str(message_cleaned3) )
-        return float(message_cleaned3)
+        if '---' in message_cleaned3: # in this case, there is no sensor to read from, just return 0.
+            floated_message = 0.00
+        else:
+            floated_message = float(message_cleaned3)
+        return floated_message
         
         
     def _set_temperature(self,temperature):
@@ -590,7 +631,6 @@ class julabo(Temperature_controller):
         logging.debug("Reading external temperature")
         readtemp_E_command = "in_pv_02\r"
         message = self._in_command( readtemp_E_command )
-        print('Julabo returns:',message) # For debug
         temp = self._julabo_temp_parser(message)
         logging.debug("External temperature reading is: '%s'" % str(temp))
         return temp
