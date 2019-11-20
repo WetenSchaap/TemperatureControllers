@@ -92,7 +92,7 @@ class Temperature_controller():
     '''
     def __init__(self,comport):
         self.comport = comport
-    
+        
     def __repr__(self):
         message = " <%s object controlling comport %s>" % (str(self.__class__),self.comport)
         return message 
@@ -111,7 +111,7 @@ class Temperature_controller():
         logging.info('Initializing connection...')
         try: 
             connection = serial.Serial(self.comport,baudrate=4800,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
-            logging.info('Connection succesfully established')
+            logging.info('Connected to device at comport %s' % self.comport)
             return connection
         except serial.SerialException:
             logging.exception("Selected comport not found or wrong permissions.")
