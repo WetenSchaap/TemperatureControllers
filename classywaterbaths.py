@@ -1,10 +1,10 @@
 import serial
+import serial.tools.list_ports # why these have to be seperate? Nobody knowsss. Also, this is only nessecary on Windows? Really weird stuff.
 import time
 import warnings
 import math
 import sys
 import datetime
-
 '''
 @author: Piet Swinkels
 Based on simonexp.py, written by Simon Stuij. I just put everything from simonexp.py in classes so that we can control two systems simultaniously. I also added support for haakeF6 and haakePhoenix, and made everything a bit more uniform.
@@ -14,7 +14,7 @@ IF YOU DON'T KNOW ANYTHING ABOUT PROGRAMING/THIS IS YOUR FIRST TIME HERE, READ H
 	2 First run this script (there is a play button somehwere to do that)
 	3 start by finding the USB port the heating unit is plugged in, type "find_available_comports(True)" in the screen to the right and press enter. read the help.
 	4 Now, which waterbath are you using? Probably the Julabo one, I will continue as if you chose that.
-	5 type "ju = julabo('[the name you found in step 3]')"
+	5 type "ju = julabo('the name you found in step 3')"
 	6 You should be ready to do stuff now! Possible commands are:
 		- 'ju.start_pump()' to start the waterbath
 		- 'ju.changet(30)' to set the temperature to 30
