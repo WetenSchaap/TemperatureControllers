@@ -20,7 +20,6 @@ find_available_comports(helpme=True)    # Will return list of usable ports. Chan
 ju = julabo('com4')		# Fill in port selected with find_available_comports
 
 #%% Start the machine 
-# This may not be needed in HaakeF6, which starts its pump automatically
  
 ju.start_pump()
 
