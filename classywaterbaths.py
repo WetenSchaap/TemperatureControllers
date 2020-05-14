@@ -11,19 +11,6 @@ import logging
 Based on simonexp.py, written by Simon Stuij. I just put everything from simonexp.py in classes so that we can control two systems simultaniously. I also added support for haakeF6 and haakePhoenix, and made everything a bit more uniform.
 
 IF YOU DON'T KNOW ANYTHING ABOUT PROGRAMING/THIS IS YOUR FIRST TIME HERE, READ HERE:
-<<<<<<< HEAD
-	1 Don't panic
-	2 First run this script (there is a play button somehwere to do that)
-	3 start by finding the USB port the heating unit is plugged in, type "find_available_comports(True)" in the screen to the right and press enter. read the help.
-	4 Now, which waterbath are you using? Probably the Julabo one, I will continue as if you chose that.
-	5 type "ju = julabo('the name you found in step 3')"
-	6 You should be ready to do stuff now! Possible commands are:
-		- 'ju.start_pump()' to start the waterbath
-		- 'ju.changet(30)' to set the temperature to 30
-		- 'ju.ramp_smooth(20,30,1000)' to change the temperature from 20 to 30 over the course of 1000 seconds.
-	7 For help/more commands, ask Piet, or try reading the scripts. text between '' is mostly helpfull comments to look at.
-		
-=======
     1 Don't panic
     2 First run this script (there is a play button somehwere to do that)
     3 start by finding the USB port the heating unit is plugged in, type "find_available_comports(True)" in the screen to the right and press enter. read the help.
@@ -35,7 +22,6 @@ IF YOU DON'T KNOW ANYTHING ABOUT PROGRAMING/THIS IS YOUR FIRST TIME HERE, READ H
         - 'ju.ramp_smooth(20,30,1000)' to change the temperature from 20 to 30 over the course of 1000 seconds.
     7 For help/more commands, ask Piet, or try reading the scripts. text between '' is mostly helpfull comments to look at.
         
->>>>>>> b8c47cef8b6651c21b94b05d4459417af16ac4e3
 This scripts requires the 'PySerial' module. The script should be able to work with  any version of this module (including very old ones that still work on Windows XP machines).
 
 All these classes are used in a very similar way. First, we assign the class of the 
@@ -47,7 +33,7 @@ Guide for adding new machines:
             - _readtemp_set (okay, not really, but is really inconvenient not to have this (looking at you electrical heating system)
             - _set_temperature
             These functions should contain a call to _in_command and _out command respectively, with the command found in the manual of the machine in question.
-    * Let the class inherit from the superclass Temperature_controller, or, if we allready have a controller from the brand, the brand Superclass (i.e. 'haake').
+    * Let the class inherit from the metaclass Temperature_controller, or, if we allready have a controller from the brand, the brand metaclass (i.e. 'haake').
     * Stuff should now work automatically
 
 Random Notes:
@@ -85,7 +71,8 @@ if 'win' in sys.platform:
 def find_available_comports(helpme=False):
     '''
     This function just lists all COMports that are available.
-    Setting helpme to True will also print a help as to what comports are and why we need them.
+    Setting helpme to True will also print a help as to what comports are and 
+    why we need them.
     '''
     logging.debug('Finding available Comports...')
     print("Available ports:")
@@ -94,20 +81,34 @@ def find_available_comports(helpme=False):
         logging.info('Comport found: %s' %str(i))
     if helpme:
         print("*******************HELP**********************")
-        print("The PC has multiple ports to communicate with outside devices, such as USB ports, but also bluetooth. We must tell Python on which port is our machine. Because the temp-controllers use a 'serial RS232' port, and this computer only has usb-ports, we use a converter. Each PC has a different brand converter, so thats why I cant just select one automatically. The list just printed will contain a comport name (i.e., 'COM4', or '/dev/ttyUSB0', or something similar) and a description. The description tells you what is attached to the PC. In this case we are looking for somethin along the lines of 'USB-to-Serial converter'. Remember the corresponding COMport name, and input that into the regular script. And that's it. Easypeasy." )
+        print("The PC has multiple ports to communicate with outside devices," 
+              "such as USB ports, but also bluetooth. We must tell Python on "
+              "which port is our machine. Because the temp-controllers use a"
+              " 'serial RS232' port, and this computer only has usb-ports, we "
+              "use a converter. Each PC has a different brand converter, so "
+              "thats why I cant just select one automatically. The list just "
+              "printed will contain a comport name (i.e., 'COM4', or "
+              "'/dev/ttyUSB0', or something similar) and a description. The"
+              "description tells you what is attached to the PC. In this case "
+              "we are looking for somethin along the lines of 'USB-to-Serial "
+              "converter'. Remember the corresponding COMport name, and input "
+              "that into the regular script. And that's it. Easypeasy." )
         
 
 class Temperature_controller():
     '''
-    This is the superclass (metaclass). It cannot be used directly, but all temperature controllers inherit from it. 
-    So, basically, if you change something here, it will change something in all classes. Usefull for things that all classes do, so for instance the ramping function.
+    This is the superclass (metaclass). It cannot be used directly, but all 
+    temperature controllers inherit from it. So, basically, if you change 
+    something here, it will change something in all classes. Usefull for things 
+    that all classes do, so for instance the ramping function.
     This Class has great power, use with great responsibility.
     '''
     def __init__(self,comport):
         self.comport = comport
         
     def __repr__(self):
-        message = " <%s object controlling comport %s>" % (str(self.__class__),self.comport)
+        message = " <%s object controlling comport %s>" % (str(self.__class__),
+                                                            self.comport)
         return message 
     
     def __str__(self):
@@ -119,16 +120,28 @@ class Temperature_controller():
     
     def _initialize_connection (self,baudrate,bytesize,parity,stopbits,timeout=None,xonxoff=False,rtscts=False,write_timeout=None,dsrdtr=False,inter_byte_timeout=None):
         '''
-        Does what you think it does. It makes a connection to the waterbath with given parameters.
+        Does what you think it does. It makes a connection to the waterbath with
+        given parameters.
         '''
         logging.info('Initializing connection...')
         try: 
-            connection = serial.Serial(self.comport,baudrate=4800,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE,timeout=5,xonxoff=False,rtscts=False,write_timeout=5,dsrdtr=False,inter_byte_timeout=None)
+            connection = serial.Serial(self.comport,baudrate=4800,
+                                        bytesize=serial.EIGHTBITS,
+                                        parity=serial.PARITY_NONE,
+                                        stopbits=serial.STOPBITS_ONE,
+                                        timeout=5, xonxoff=False, 
+                                        rtscts=False, write_timeout=5, 
+                                        dsrdtr=False, inter_byte_timeout=None)
             logging.info('Connected to device at comport %s' % self.comport)
             return connection
         except serial.SerialException:
             logging.exception("Selected comport not found or wrong permissions.")
-            raise serial.SerialException("Wrong comport, find the correct comport using 'find_available_comports(True)'. If you are sure this is correct, see if you have permission to open COMports. Or look for Piet.")
+            raise serial.SerialException("Wrong comport, find the correct "
+                                        "comport using"
+                                        "'find_available_comports(True)'. If "
+                                        "you are sure this is correct, see if "
+                                        "you have permission to open COMports."
+                                        "Or look for Piet.")
         
     def closecom(self):
         '''
@@ -150,8 +163,15 @@ class Temperature_controller():
             
     def _out_command(self,command,flush=True):
         '''
-        Setting values of parameters. Does not return anything. Fot instance, can set the temperature.
-        Has error catching mechanism --> sometimes "SerialException: WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))" is thrown after long stretch of inactivity. Manually, you can solve this by just restarting 'ju = julabo('com4')' etc.. This is an attempt to do this automatically, so a ramp or something will not be disturbed.
+        Setting values of parameters. Does not return anything. Fot instance, 
+        can set the temperature.
+        
+        Has error catching mechanism --> sometimes "SerialException: WriteFile 
+        failed (PermissionError(13, 'The device does not recognize the command.',
+        None, 22))" is thrown after long stretch of inactivity. Manually, you 
+        can solve this by just restarting 'ju = julabo('com4')' etc.. 
+        This is an attempt to do this automatically, so a ramp or something will
+        not be disturbed.
         '''
         logging.debug("Trying to write command to device: '%s'" %str(command) )
         try:
@@ -159,8 +179,9 @@ class Temperature_controller():
             logging.debug("Command transfered to device succesfully")
         except serial.SerialException:
             logging.exception("Command transfer to device failed.")
-            print('I detected that the connection to the device has been interupted. I will try to reset the connection. This may fail!')
-            logging.info("Re-initializing connection after deteting broken connection")
+            print("I detected that the connection to the device has been "
+                "interupted. I will try to reset the connection. This may fail!")
+            logging.info("Re-initializing connection after detecting broken connection")
             print(">>> REINITIALISING CONNECTION <<<")
             self.__init__(self.comport)
             self.com.write( command.encode() )
@@ -171,7 +192,8 @@ class Temperature_controller():
         
     def _in_command(self,command):
         '''
-        Asking for parameters or temperatures to be returned by waterbath. Returns raw message.
+        Asking for parameters or temperatures to be returned by waterbath. 
+        Returns raw message.
         '''
         logging.debug("Trying to write command to device: '%s'" %str(command) )
         self._out_command(command,False) # use _out_command to send message
@@ -192,27 +214,33 @@ class Temperature_controller():
         
     def _readtemp_internal(self):
         '''
-        This function is made to be overridden in one of the child classes. Just to avoid errors in printing incomplete classes!
+        This function is made to be overridden in one of the child classes. 
+        Just to avoid errors in printing incomplete classes!
         '''
         return 0
     
     def _readtemp_external(self):
         '''
-        This function is made to be overridden in one of the child classes. Just to avoid errors in printing incomplete classes!
+        This function is made to be overridden in one of the child classes. 
+        Just to avoid errors in printing incomplete classes!
         '''
         return 0
     
     def _readtemp_set(self):
         '''
-        This function is made to be overridden in one of the child classes. Just to avoid errors in printing incomplete classes!
+        This function is made to be overridden in one of the child classes. 
+        Just to avoid errors in printing incomplete classes!
         '''
         return 0
     
     def passive_logging(self,time_interval = 15, verbose = False):
         '''
-        Log the current internal temp/external temp/set temp every so often. I will continue this until I get killed manually!
-        time_interval sets the time in seconds between each logging. Minimum is quite low, 5 seconds is easily enough.
-        set verbose to True to also print the found values (as opposed to just logging them)
+        Log the current internal temp/external temp/set temp every so often. 
+        I will continue this until I get killed manually! 
+        time_interval sets the time in seconds between each logging. 
+        Minimum is quite low, 5 seconds is easily enough.
+        set verbose to True to also print the found values (as opposed to 
+        just logging them)
         '''
         print("Starting passive logging: I will note the temperatures every %f seconds. This will last indefinitly unless you kill me. To kill me, press crtl+c." % (time_interval,) )
         logging.debug("Start passive logging")
@@ -248,7 +276,9 @@ class Temperature_controller():
             * Tend      : Final temperature of ramp in deg C.
             * dT        : Temperature step of ramp in deg C.
             * totaltime : Total time of measurement in *seconds*.
-            * ask       : Boolean, if True, will give all experimental info and wait for user conformation. If False, it will just start.
+            * ask       : Boolean, if True, will give all experimental info and 
+                          wait for user conformation. If False, it will just 
+                          start.
             * verbose   : Boolean, set to True to get all debug info.
         '''
         logging.info("You selected a ramp: Tinit=%f, Tend=%f, dT=%f, totaltime=%f" %(Tinit,Tend,dT,totaltime))
@@ -269,7 +299,7 @@ class Temperature_controller():
         
         print('The waiting time between each step is %s.' % (fwaittime,))
         if waittime <= 10:
-            logging.warning("Ramp settings are chosen with (too?) short waiting times!")
+            logging.warning("Ramp settings are chosen with short waiting times!")
             warnings.warn("The waiting step between 2 temperatures is probably to small for the waterbath to keep up. I suggest you try using a longer time.",)
         print('The total time of this ramp is %s.' % (ftotaltime,))
         
@@ -338,10 +368,11 @@ class Temperature_controller():
             * Tend      : Final temperature of ramp in deg C.
             * dT        : Tempearture step of ramp in deg C.
             * steptime  : Total time of a step in *seconds*.
-            * ask       : Boolean, if True, will give all experimental info and wait for user conformation. If False, it will just start.
+            * ask       : Boolean, if True, will give all experimental info and 
+                          wait for user conformation. If False, it will just start.
             * verbose   : Boolean, set to True to get all debug info.
         '''
-        steps = abs(round((Tend-Tinit)/dT))                                 # Number of steps
+        steps = abs(round((Tend-Tinit)/dT))                 # Number of steps
         Trange = [round(Tinit + i*dT,2) for i in range(0,steps+1)] # Temperatures we will visit
         totaltime = len(Trange) * steptime
         self.ramp(Tinit,Tend,dT,totaltime,ask,verbose)
@@ -349,13 +380,16 @@ class Temperature_controller():
     def ramp_smooth(self,Tinit,Tend,totaltime,ask=True,verbose=False):
         '''
         Equivalent to ramp(), but with dT = 0.01 preset.
-        Makes a continues temperature ramp (or as close to it as we can with our setup) with device for controlling temperature.
+        Makes a continues temperature ramp (or as close to it as we can with our
+        setup) with device for controlling temperature.
 
         IN:
             * Tinit     : Start temperature of ramp in deg C.
             * Tend      : Final temperature of ramp in deg C.
             * totaltime : Total time of the experiment in *seconds*.
-            * ask       : Boolean, if True, will give all experimental info and wait for user conformation. If False, it will just start.
+            * ask       : Boolean, if True, will give all experimental info and 
+                          wait for user conformation. If False, it will just 
+                          start.
             * verbose   : Boolean, set to True to get all debug info.
         '''
         dT = 0.01
@@ -405,9 +439,9 @@ class Temperature_controller():
 class haake(Temperature_controller):
     '''
     DO NOT USE DIRECTLY, USE FOR INSTANCE 'haakeF6' OR 'haakePhoenix'!
-    This is the class from which all Haake watherbaths can inherit - since the functions are the same anyway.
+    This is the metaclass from which all Haake watherbaths can inherit - since 
+    the raw commands are the same anyway.
     If you change/add a function here, it changes for all Haake waterbaths.
-    Cool innit?
     '''
     def __init__(self,comport):
         super().__init__(comport)
@@ -424,7 +458,8 @@ class haake(Temperature_controller):
         
     def _readtemp_external(self):
         '''
-        Reads out external temperature. Usefull if we add sensor to setup (which we won't do, but you know...).
+        Reads out external temperature. Usefull if we add sensor to setup 
+        (which we won't do, but you know...).
         '''
         logging.debug("Reading external temperature")
         readtemp_E_command = "F2\r"
@@ -444,7 +479,8 @@ class haake(Temperature_controller):
     
     def _set_temperature(self,temperature):
         '''
-        Changes set temperature of waterbath. DO NOT USE DIRECTLY, USE haakeF6.changet() INSTEAD!
+        Changes set temperature of waterbath. DO NOT USE DIRECTLY, 
+        USE haakeF6.changet() INSTEAD!
         '''
         logging.debug("Changing set temperature to '%s'" % str(temperature) )
         settemp_command = "S  %i\r" % (round(float(temperature) * 100),)
@@ -454,7 +490,8 @@ class haake(Temperature_controller):
     def _haake_temp_parser(self,message):
         '''
         Parses what the Haake returns into a readable temperature.
-        The Haake returns something like b'$\r\nSW+033.99$\r\n' which equals +33.99 degree C.
+        The Haake returns something like b'$\r\nSW+033.99$\r\n' which equals 
+        +33.99 degree C.
         '''
         #print(message) #For debug
         try:
@@ -484,7 +521,8 @@ class haake(Temperature_controller):
     
     def set_RTA_internal(self,setc):
         '''
-        WARNING. THIS CHANGES THE CORRECTION FACTOR 'C', LEADING TO A DIFFERENT INTERNAL TEMPERATURE.
+        WARNING. THIS CHANGES THE CORRECTION FACTOR 'C', LEADING TO A 
+        DIFFERENT INTERNAL TEMPERATURE.
         NEVER CHANGE THIS IF YOU DO NOT NOW WHAT YOU ARE DOING!
         In case you screw up, +0.50 seems to be a sort of okay value.
         '''
@@ -537,9 +575,13 @@ class haakeF6(haake):
 class haakePhoenix(haake):
     '''
     Class for controlling Haake Phoenix C25P waterbath.
-    Changing the temperature correction factor is not functional for unknown reasons, the rest works fine.
-    Note that temperature given by the bath is of by about +0.8 degree C. (we cant correct internally due to weird non-functional RTA).
-    Always start by starting the pump using haakePhoenix.start_pump(), as it does not start automatically.
+    Changing the temperature correction factor is not functional for unknown 
+    reasons, the rest works fine.
+    
+    Note that temperature given by the bath is of by about +0.8 degree C. 
+    (we cant correct internally due to weird non-functional RTA).
+    Always start by starting the pump using haakePhoenix.start_pump(), 
+    as it does not start automatically.
     '''
     def __init__(self,comport):
         logging.info("You selected the Haake Phoenix Waterbath")
@@ -560,7 +602,8 @@ class haakePhoenix(haake):
 class julabo(Temperature_controller):
     '''
     Class for controlling Julabo F25 waterbath.
-    (If we ever get another Julabo waterbath, we can convert this to a superclass like 'haake')
+    (If we ever get another Julabo waterbath, we can convert this to a metaclass
+    like 'haake')
     '''
     
     def __init__(self,comport):
@@ -602,7 +645,8 @@ class julabo(Temperature_controller):
         
     def _set_temperature(self,temperature):
         '''
-        Changes set temperature of waterbath to 'temperature'. DO NOT USE DIRECTLY, USE changet() INSTEAD!
+        Changes set temperature of waterbath to 'temperature'. 
+        DO NOT USE DIRECTLY, USE changet() INSTEAD!
         '''
         logging.debug("Setting temperature to %s" % str(temperature) )
         settemp_command = "out_sp_00 %06.2f\r" % (float(temperature),)
@@ -666,8 +710,9 @@ class julabo(Temperature_controller):
         
     def wiggle(self,temp,time=120):
         '''
-        This is a TEMPORARY hack, to make sure Julabo stays connected to slow confocal.
-        Works by changing T every 'time' seconds and almost immediatly changing it back.
+        This is a TEMPORARY hack, to make sure Julabo stays connected to slow 
+        confocal. Works by changing T every 'time' seconds and almost immediatly 
+        changing it back.
         Just use "ctrl + c" to stop this, it runs ad infinitem.
         '''
         logging.info("I started the 'wiggle' script. There will be NO log when it stops!")
@@ -682,10 +727,11 @@ class electric(Temperature_controller):
     '''
     Class for controlling the electric peltier-element-based heater.
     Note that we can control the temperature of the three components seperatly by
-    calling electric.set_temperature_controller(temp,[2,3]). The self.changet and ramp function assume we want to ramp
-    all three components at the same speed at the same temperature.
-    WARNING: There is no feedback system in place yet to test whether data transfer is
-    succesfull in the electric control unit. Thread carfully.
+    calling electric.set_temperature_controller(temp,[2,3]). The self.changet 
+    and ramp function assume we want to ramp all three components at the same 
+    speed at the same temperature.
+    WARNING: There is no feedback system in place yet to test whether data 
+    transfer is succesfull in the electric control unit. Thread carfully.
     '''
     def __init__(self,comport):
         logging.info("You selected the electric temperature controller")
