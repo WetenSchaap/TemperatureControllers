@@ -117,3 +117,6 @@ dmypy.json
 *.log
 /log
 log/
+
+#vscode
+.vscode/
