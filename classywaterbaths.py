@@ -47,27 +47,6 @@ TODO:
         --> Use 'real' temperature vs. just storing temperature if we set it to something different.
 '''
 
-
-# Initialize logging. Logging is usefull, because I can see back when I changed temperatures and stuff like that.
-logginglevel =  logging.INFO # Set to debug if you want to go debugging. Otherwise, leave at info, so we can use the logfile to see what we did in the past.
-logging.basicConfig(filename='tempcontroller_info.log', level=logginglevel, format='%(asctime)s - %(levelname)s: %(message)s')
-logging.info('New session was started')
-
-# This checks if you are using a Windows XP machine, and if so, gives a small lecture about the dangers of Windows XP and serialports.
-if 'win' in sys.platform:
-    logging.debug('Windows platform detected')
-    try:
-        wv = sys.getwindowsversion()
-        if wv.major <= 5: # If using windows 5 (WINDOWS XP) or below, give a warning
-            logging.warning('Windows XP detected - connection probably unstable!')
-            print("*****I DETECT WINDOWS XP*****")
-            time.sleep(1)
-            warnings.warn("The serial ports have the tendency to loose connection when connected for extended periods of time without commands comming in on this version of Windows. Therefore, I advise using the 'wiggle' function as an alternative to 'changet'. This wiggles the temperature by 0.01 degrees every 2 minutes. This way, connection will not be lost and you will be safe!")
-            time.sleep(1)
-            print("*****END OF SAFETY MESSAGE*****")
-    except:
-        pass
-
 def find_available_comports(helpme=False):
     '''
     This function just lists all COMports that are available.
@@ -105,7 +84,7 @@ class Temperature_controller():
     '''
     def __init__(self,comport):
         self.comport = comport
-        
+
     def __repr__(self):
         message = " <%s object controlling comport %s>" % (str(self.__class__),
                                                             self.comport)
@@ -141,7 +120,7 @@ class Temperature_controller():
                                         "'find_available_comports(True)'. If "
                                         "you are sure this is correct, see if "
                                         "you have permission to open COMports."
-                                        "Or look for Piet.")
+                                        " Or look for Piet.")
         
     def closecom(self):
         '''
@@ -233,6 +212,13 @@ class Temperature_controller():
         '''
         return 0
     
+    def _set_temperature(self,T):
+        '''
+        This function is made to be overridden in one of the child classes. 
+        Just to avoid errors in printing incomplete classes!
+        '''
+        pass
+    
     def passive_logging(self,time_interval = 15, verbose = False):
         '''
         Log the current internal temp/external temp/set temp every so often. 
@@ -261,7 +247,7 @@ class Temperature_controller():
             if slptime <0:
                 logging.error("passive_logging time_interval chosen too short")
                 raise ValueError("time_interval too short! Passive logging impossible.")
-            for i in range(slptime):
+            for _ in range(slptime):
                 time.sleep(1)
             time.sleep(time_interval-tcorrection-slptime)
             
@@ -349,7 +335,7 @@ class Temperature_controller():
             
             # This weird thing makes it possible to interrupt sleeping
             slptime = math.floor(waittime-tcorrection)
-            for i in range(slptime):
+            for _ in range(slptime):
                 time.sleep(1)
             time.sleep(waittime-tcorrection-slptime)
             
@@ -501,7 +487,7 @@ class haake(Temperature_controller):
             try:
                 return float(message[5:12])
             # If it still doesn't work, give detailed error response.
-            except Exception as e:
+            except Exception:
                 #print(e) #For debug
                 raise ValueError("Parser could not read haake response: '%s'" % (str(message),))
 
@@ -720,7 +706,7 @@ class julabo(Temperature_controller):
             self.changet(temp+0.01)
             time.sleep(2)
             self.changet(temp)
-            for i in time:
+            for _ in time:
                 time.sleep(1)
         
 class electric(Temperature_controller):
@@ -748,7 +734,7 @@ class electric(Temperature_controller):
                                          write_timeout=5,
                                          inter_byte_timeout=None)
         self.opencom()
-        self.changet_all(22.22)
+        self._set_temperature(22.22)
         
     def _datagenelec(self, temp, controller): #
         '''
@@ -823,4 +809,27 @@ class thermo(Temperature_controller):
         #print(message)
         settemp=float(message[3:8])
         return settemp
-        
+
+
+if __name__ == "__main__":
+    # Initialize logging. Logging is usefull, because I can see back when I changed temperatures and stuff like that.
+    logginglevel =  logging.INFO # Set to debug if you want to go debugging. Otherwise, leave at info, so we can use the logfile to see what we did in the past.
+    logging.basicConfig(filename='tempcontroller_info.log', level=logginglevel, format='%(asctime)s - %(levelname)s: %(message)s')
+    logging.info('New session was started')
+
+    # This checks if you are using a Windows XP machine, and if so, gives a small lecture about the dangers of Windows XP and serialports.
+    if 'win' in sys.platform:
+        logging.debug('Windows platform detected')
+        try:
+            wv = sys.getwindowsversion()
+            if wv.major <= 5: # If using windows 5 (WINDOWS XP) or below, give a warning
+                logging.warning('Windows XP detected - connection probably unstable!')
+                print("*****I DETECT WINDOWS XP*****")
+                time.sleep(1)
+                warnings.warn("The serial ports have the tendency to loose connection when connected for extended periods of time without commands comming in on this version of Windows. Therefore, I advise using the 'wiggle' function as an alternative to 'changet'. This wiggles the temperature by 0.01 degrees every 2 minutes. This way, connection will not be lost and you will be safe!")
+                time.sleep(1)
+                print("*****END OF SAFETY MESSAGE*****")
+        except:
+            pass
+    
+    find_available_comports()

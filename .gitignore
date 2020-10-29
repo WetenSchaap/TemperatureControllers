@@ -120,3 +120,4 @@ log/
 
 #vscode
 .vscode/
+*.code-workspace
