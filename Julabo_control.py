@@ -33,7 +33,7 @@ ju.changet(temp)
 Tinit = 31.30       	 	# Typical value: 31.8
 Tend = 31.80         	 	# Typical value: 33.25
 dT = 0.05            	 	# Typical value: 00.01, temperature steps.
-totaltime = 9000     	 	# In seconds, typically 7200 sec (3600 sec = 1 hour)
+totaltime = 9000     	 	# In seconds, typically domething like 7200 sec (3600 sec = 1 hour)
 
 ju.ramp(Tinit,Tend,dT,totaltime)
 

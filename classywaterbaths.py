@@ -1,3 +1,4 @@
+#%%
 import serial
 import serial.tools.list_ports
 import time
@@ -45,6 +46,7 @@ To be fixed/implemented:
 TODO:
     * Introduce some variable that stores the temperature at different moments in time?
         --> Use 'real' temperature vs. just storing temperature if we set it to something different.
+    * Add the LAUDA E200 to this file (alternative waterbath)
 '''
 
 def find_available_comports(helpme=False):
@@ -421,7 +423,163 @@ class Temperature_controller():
         logging.info("Temperature set to %.2f deg C." % (temp,))
         # Print confirmation of temperature setting, and current time because usefull.
         print(datetime.datetime.now().time(),"- Temperature set to %.2f deg C." % (temp,) )
+        
+        
+        
+
+class Lauda(Temperature_controller):
+    '''
+    DO NOT USE DIRECTLY, USE FOR INSTANCE 'E200'!
+    This is the metaclass from which all Lauda watherbaths can inherit - since 
+    the raw commands are the same anyway.
+    If you change/add a function here, it changes for all Haake waterbaths.
+    '''
+    def __init__(self,comport):
+        super().__init__(comport)
+        self.errors = {"ERR 2" : "Wrong input (e.g. buffer overflow)",
+                       "ERR 3" : "Wrong command",
+                       "ERR 5" : "Syntax Error in value",
+                       "ERR 6" : "Illegal Value",
+                       "ERR 8" : "Channel (like external temperature) not available",
+                       "Err 30": "Programmer, all segements occupied",
+        }
     
+    def am_I_in_control(self):
+        '''
+        Check if the programming interface is in control
+        '''
+        logging.debug("Reading whether I can control the Lauda via the programming interface")
+        type_command = "IN MODE 01\r"
+        message = self._in_command(type_command)
+        logging.debug("Raw return of control request is: '%s'" % str(message))
+        return bool(self._lauda_temp_parser(message))
+    
+    def type(self):
+        '''
+        Print thermostat type
+        '''
+        logging.debug("Reading Lauda thermostat type")
+        type_command = "TYPE\r"
+        message = self._in_command(type_command)
+        logging.debug("Raw type return is: '%s'" % str(message))
+        return message
+    
+    def version(self):
+        '''
+        Print software version
+        '''
+        logging.debug("Reading Lauda thermostat software version")
+        version_command = "VERSION\r"
+        message = self._in_command(version_command)
+        logging.debug("Raw version return is: '%s'" % str(message))
+        return message
+        
+    def _readtemp_internal(self):
+        '''
+        Reads out internal temperature.
+        '''
+        logging.debug("Reading internal temperature")
+        readtemp_I_command = "IN PV 00\r"
+        message = self._in_command(readtemp_I_command)
+        logging.debug("Internal temperature reading is: '%s'" % str(message))
+        return self._lauda_temp_parser(message) # Which is temperature parsed from output
+        
+    def _readtemp_external(self):
+        '''
+        Reads out external temperature. Usefull if we add sensor to setup 
+        (which we won't do, but you know...).
+        '''
+        logging.debug("Reading external temperature")
+        readtemp_E_command = "IN PV 01\r"
+        message = self._in_command(readtemp_E_command)
+        logging.debug("External temperature reading is: '%s'" % str(message))
+        return self._lauda_temp_parser(message) # Which is temperature parsed from output
+    
+    def _readtemp_set(self):
+        '''
+        Reads out set temperature.
+        '''
+        logging.debug("Reading set temperature")
+        readtemp_S_command = "IN SP 00\r"
+        message = self._in_command(readtemp_S_command)
+        logging.debug("Set temperature reading is: '%s'" % str(message))
+        return self._lauda_temp_parser(message) # Which is temperature parsed from output
+    
+    def _set_temperature(self,temperature):
+        '''
+        Changes set temperature of waterbath. DO NOT USE DIRECTLY.
+        '''
+        logging.debug("Changing set temperature to '%s'" % str(temperature) )
+        settemp_command = "OUT SP 00 {0:06.2f}\r".format(float(temperature))
+        self._out_command( settemp_command )
+        logging.debug("Set temperature was changed")
+    
+    def _set_pumppower(self, power):
+        '''
+        Sets power of pump to 0 (off),1,2,3,4, or 5.
+        '''
+        power = round(power)
+        if not (0 <= power <= 5):
+            raise ValueError("Pumppower must be between 0 and 5")
+        logging.debug("Changing power of pump to '%i'" % (power,) )
+        settemp_command = "OUT SP 01 {0:03}\r".format(power)
+        self._out_command( settemp_command )
+        logging.debug("Pump power was changed")
+        
+    def _lauda_temp_parser(self,message):
+        '''
+        Parses what the Lauda returns into a readable temperature.
+        The Lauda returns something like b'A015_023.45' or b'A015_-015.60' which equals +23.45 and -15.6 degree C.
+        '''
+        print(message) # For debug
+        # cut off all carriage return (\r) and line feed (\n) commands
+        message = message.decode()
+        message = message.replace('\r', '')
+        message = message.replace('\n', '')
+        try:
+            return float(message)
+        except ValueError:
+            # This means we have an error, I think.
+            try:
+                errormessage = self.errors[message]
+                raise ValueError(errormessage)
+            except KeyError:
+                #print(e) #For debug
+                raise ValueError("Parser could not read Lauda response: '%s'" % (str(message),))
+            
+    def start_pump(self):
+        logging.info("Starting pump and heating/cooling")
+        startpump_command = "START\r"
+        self._out_command( startpump_command )
+        
+    def stop_pump(self):
+        logging.info("Stopping pump and heating/cooling")
+        stoppump_command = "STOP\r"
+        self._out_command( stoppump_command )
+
+class LaudaE200(Lauda):
+    '''
+    Class for controlling the Lauda Ecoline E200 waterbath.
+    Inherits from Lauda superclass. Look there for the functions you might need.
+    '''
+    
+    def __init__(self,comport):
+        logging.info("You selected the Lauda Ecoline E200 Waterbath")
+        super().__init__(comport)
+        self.com = self._initialize_connection(
+            baudrate=9600,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            timeout=5,
+            xonxoff=False,
+            rtscts=True, # set to false if it soes not work!
+            write_timeout=5,
+            dsrdtr=False,
+            inter_byte_timeout=None
+            )
+        self.opencom()
+
 class haake(Temperature_controller):
     '''
     DO NOT USE DIRECTLY, USE FOR INSTANCE 'haakeF6' OR 'haakePhoenix'!
@@ -833,3 +991,4 @@ if __name__ == "__main__":
             pass
     
     find_available_comports()
+# %%
