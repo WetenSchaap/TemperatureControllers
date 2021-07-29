@@ -46,7 +46,7 @@ To be fixed/implemented:
 TODO:
     * Introduce some variable that stores the temperature at different moments in time?
         --> Use 'real' temperature vs. just storing temperature if we set it to something different.
-    * Add the LAUDA E200 to this file (alternative waterbath)
+    * Debug new LAUDA Ecoline E200
 '''
 
 def find_available_comports(helpme=False):
@@ -99,20 +99,36 @@ class Temperature_controller():
         message = "Connection to Temperature_controller at comport:\t%s\nInternal temperature is currently:\t%.2f\nSet temperature is currently:\t%.2f\n" % (self.comport,self._readtemp_internal(),self._readtemp_set())
         return message
     
-    def _initialize_connection (self,baudrate,bytesize,parity,stopbits,timeout=None,xonxoff=False,rtscts=False,write_timeout=None,dsrdtr=False,inter_byte_timeout=None):
+    def _initialize_connection(self,
+                               baudrate,
+                               bytesize,
+                               parity,
+                               stopbits,
+                               timeout=None,
+                               xonxoff=False,
+                               rtscts=False,
+                               write_timeout=None,
+                               dsrdtr=False,
+                               inter_byte_timeout=None):
         '''
         Does what you think it does. It makes a connection to the waterbath with
         given parameters.
         '''
         logging.info('Initializing connection...')
         try: 
-            connection = serial.Serial(self.comport,baudrate=4800,
-                                        bytesize=serial.EIGHTBITS,
-                                        parity=serial.PARITY_NONE,
-                                        stopbits=serial.STOPBITS_ONE,
-                                        timeout=5, xonxoff=False, 
-                                        rtscts=False, write_timeout=5, 
-                                        dsrdtr=False, inter_byte_timeout=None)
+            connection = serial.Serial(
+                self.comport,
+                baudrate = baudrate,
+                bytesize = bytesize,
+                parity = parity,
+                stopbits = stopbits,
+                timeout = timeout,
+                xonxoff = xonxoff, 
+                rtscts = rtscts,
+                write_timeout = write_timeout, 
+                dsrdtr = dsrdtr,
+                inter_byte_timeout = inter_byte_timeout,
+                )
             logging.info('Connected to device at comport %s' % self.comport)
             return connection
         except serial.SerialException:
@@ -408,10 +424,10 @@ class Temperature_controller():
             if not setcheck:
                 if i > 3:
                     logging.warning("Datatransfer failed %i times in a row" % i)
-                    warnings.warn("Datatransfer failed %i times in a row, try diconnecting and reconnecting the usb cable. I will not throw a real error, because sometimes feedback of machine doesn't work, while temperature is changed corretly." % (i,) )
+                    warnings.warn("Datatransfer failed %i times in a row, try diconnecting and reconnecting the USB cable. I will not throw a real error, because sometimes feedback of machine doesn't work, while temperature is changed corretly." % (i,) )
                     break
-                logging.warning("Something went wrong in datatransfer: %s.try setting temperature again." % (ex, ))
-                print("Something went wrong in datatransfer: %s.\nTrying again." % (ex, ))
+                logging.warning("Something went wrong in datatransfer: '%s'. Try setting temperature again." % (ex, ))
+                print("Something went wrong in datatransfer: '%s'.\nTrying again." % (ex, ))
                 self.closecom() # close com and open again to try and restore data connection
                 time.sleep(2)
                 self.opencom()
@@ -423,36 +439,36 @@ class Temperature_controller():
         logging.info("Temperature set to %.2f deg C." % (temp,))
         # Print confirmation of temperature setting, and current time because usefull.
         print(datetime.datetime.now().time(),"- Temperature set to %.2f deg C." % (temp,) )
-        
-        
-        
+
 
 class Lauda(Temperature_controller):
     '''
-    DO NOT USE DIRECTLY, USE FOR INSTANCE 'E200'!
+    DO NOT USE DIRECTLY, USE FOR INSTANCE 'LaudaE200'!
     This is the metaclass from which all Lauda watherbaths can inherit - since 
     the raw commands are the same anyway.
     If you change/add a function here, it changes for all Haake waterbaths.
     '''
     def __init__(self,comport):
         super().__init__(comport)
-        self.errors = {"ERR 2" : "Wrong input (e.g. buffer overflow)",
-                       "ERR 3" : "Wrong command",
-                       "ERR 5" : "Syntax Error in value",
-                       "ERR 6" : "Illegal Value",
-                       "ERR 8" : "Channel (like external temperature) not available",
-                       "Err 30": "Programmer, all segements occupied",
+        self.errors = {
+            "ERR_2" : "Wrong input (e.g. buffer overflow)",
+            "ERR_3" : "Wrong command",
+            "ERR_5" : "Syntax Error in value",
+            "ERR_6" : "Illegal Value",
+            "ERR_8" : "Channel (like external temperature) not available",
+            "Err_30": "Programmer, all segements occupied",
         }
     
     def am_I_in_control(self):
         '''
         Check if the programming interface is in control
+        TODO: This throws an error!
         '''
         logging.debug("Reading whether I can control the Lauda via the programming interface")
         type_command = "IN MODE 01\r"
         message = self._in_command(type_command)
         logging.debug("Raw return of control request is: '%s'" % str(message))
-        return bool(self._lauda_temp_parser(message))
+        return bool(self._lauda_message_handler(message))
     
     def type(self):
         '''
@@ -482,7 +498,7 @@ class Lauda(Temperature_controller):
         readtemp_I_command = "IN PV 00\r"
         message = self._in_command(readtemp_I_command)
         logging.debug("Internal temperature reading is: '%s'" % str(message))
-        return self._lauda_temp_parser(message) # Which is temperature parsed from output
+        return self._lauda_message_handler(message) # Which is temperature parsed from output
         
     def _readtemp_external(self):
         '''
@@ -493,7 +509,11 @@ class Lauda(Temperature_controller):
         readtemp_E_command = "IN PV 01\r"
         message = self._in_command(readtemp_E_command)
         logging.debug("External temperature reading is: '%s'" % str(message))
-        return self._lauda_temp_parser(message) # Which is temperature parsed from output
+        try:
+            t = self._lauda_message_handler(message) # temperature parsed from output
+        except Exception:
+            t = -1000 # prevent errors in inhereting stuff.
+        return t 
     
     def _readtemp_set(self):
         '''
@@ -503,7 +523,7 @@ class Lauda(Temperature_controller):
         readtemp_S_command = "IN SP 00\r"
         message = self._in_command(readtemp_S_command)
         logging.debug("Set temperature reading is: '%s'" % str(message))
-        return self._lauda_temp_parser(message) # Which is temperature parsed from output
+        return self._lauda_message_handler(message) # Which is temperature parsed from output
     
     def _set_temperature(self,temperature):
         '''
@@ -514,34 +534,51 @@ class Lauda(Temperature_controller):
         self._out_command( settemp_command )
         logging.debug("Set temperature was changed")
     
-    def _set_pumppower(self, power):
+    def set_pumppower(self, power):
         '''
-        Sets power of pump to 0 (off),1,2,3,4, or 5.
+        Sets power of pump to 1,2,3,4, or 5. Turning it off via this way is NOT suported
         '''
         power = round(power)
-        if not (0 <= power <= 5):
-            raise ValueError("Pumppower must be between 0 and 5")
+        if not (0 < power <= 5):
+            raise ValueError("Pumppower must be between 1 and 5")
         logging.debug("Changing power of pump to '%i'" % (power,) )
         settemp_command = "OUT SP 01 {0:03}\r".format(power)
         self._out_command( settemp_command )
         logging.debug("Pump power was changed")
         
-    def _lauda_temp_parser(self,message):
+    def _lauda_message_handler(self,message):
         '''
         Parses what the Lauda returns into a readable temperature.
-        The Lauda returns something like b'A015_023.45' or b'A015_-015.60' which equals +23.45 and -15.6 degree C.
+        The Lauda returns something like b'023.45' or b'-015.60' which equals +23.45 and -15.6 degree C. Also possible are errors, like "ERR_2". If you give a command, it will also say OK, meaning there are 2 messages waiting for you, like: b'OK\r\n 033.50\r\n'. We handle that by just only returning the last thing in the list of things you said. Which can be done more elegantly, but this will work in like 99% of cases so why bother.
         '''
-        print(message) # For debug
+        # print(message) # For debug
         # cut off all carriage return (\r) and line feed (\n) commands
-        message = message.decode()
-        message = message.replace('\r', '')
-        message = message.replace('\n', '')
+        if type(message) == bytes:
+            message = message.decode()
+        elif type(message) != str:
+            raise TypeError("can only parse string and byte objects, but given type was {0}!".format(type(message)))
+        messages = message.split() # often there is more then one waiting message. This will also clean any \r\n stuff.
+        # only return the last number, probably you are not interested in OK (and ERROR allready gives an error!)
+        parsed = list()
+        for m in messages:
+            parsed.append( self._lauda_parser(m) )
+        return parsed[-1]
+    
+    def _lauda_parser(self,message):
+        """
+        See _lauda_message_handler() for full docs.
+        I require a str as message input here! 
+        """
+        assert type(message) == str
+        message = message.replace('\r\n', '') # just to be sure
         try:
             return float(message)
         except ValueError:
-            # This means we have an error, I think.
+            # This means the machine says "OK", or there is some error.
             try:
-                errormessage = self.errors[message]
+                if message == "OK":
+                    return message
+                errormessage = message + " : " + self.errors[message]
                 raise ValueError(errormessage)
             except KeyError:
                 #print(e) #For debug
@@ -567,16 +604,16 @@ class LaudaE200(Lauda):
         logging.info("You selected the Lauda Ecoline E200 Waterbath")
         super().__init__(comport)
         self.com = self._initialize_connection(
-            baudrate=9600,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            timeout=5,
-            xonxoff=False,
-            rtscts=True, # set to false if it soes not work!
-            write_timeout=5,
-            dsrdtr=False,
-            inter_byte_timeout=None
+            baudrate = 9600, # can be set manually in the machine!    
+            bytesize = serial.EIGHTBITS,
+            parity = serial.PARITY_NONE,
+            stopbits = serial.STOPBITS_ONE,
+            timeout = 15,
+            xonxoff = False,
+            rtscts = True, # set to false if it soes not work!
+            write_timeout = 15,
+            dsrdtr = False,
+            inter_byte_timeout = None
             )
         self.opencom()
 
