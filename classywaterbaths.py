@@ -1,12 +1,3 @@
-#%%
-import serial
-import serial.tools.list_ports
-import time
-import warnings
-import math
-import sys
-import datetime
-import logging
 '''
 @author: Piet Swinkels
 Based on simonexp.py, written by Simon Stuij. I just put everything from simonexp.py in classes so that we can control two systems simultaniously. I also added support for haakeF6 and haakePhoenix, and made everything a bit more uniform.
@@ -48,6 +39,15 @@ TODO:
         --> Use 'real' temperature vs. just storing temperature if we set it to something different.
     * Debug new LAUDA Ecoline E200
 '''
+
+import serial
+import serial.tools.list_ports
+import time
+import warnings
+import math
+import sys
+import datetime
+import logging
 
 def find_available_comports(helpme=False):
     '''
@@ -1028,4 +1028,3 @@ if __name__ == "__main__":
             pass
     
     find_available_comports()
-# %%
